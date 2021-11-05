@@ -1,0 +1,12 @@
+# Qt creator artefacts
+
+*.cflags
+*.cxxflags
+*.config
+*.creator
+*.files
+*.includes
+
+# build artefacts
+
+build/

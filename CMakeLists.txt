@@ -30,8 +30,8 @@ configure_file(
 include(AddMxrlang)
 
 include_directories(BEFORE
-  ${CMAKE_CURRENT_BINARY_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR}/include/mxrlang/Basic
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/mxrlang/Basic
   )
 
 add_subdirectory(lib)

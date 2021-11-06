@@ -1,0 +1,5 @@
+#ifndef DIAG
+#define DIAG(ID, Level, Msg)
+#endif
+
+#undef DIAG

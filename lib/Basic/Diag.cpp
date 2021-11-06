@@ -6,17 +6,17 @@ const char* diagText[] = {
 #include "Diag.def"
 };
 llvm::SourceMgr::DiagKind diagKind[] = {
-#define DIAG(ID, Level, Msg) SourceMgr::DK_##Level,
+#define DIAG(ID, Level, Msg) llvm::SourceMgr::DK_##Level,
 #include "Diag.def"
 };
 } // namespace mxrlang
 
 using namespace mxrlang;
 
-const char* Diag::getDiagText(uint32_t diagID) {
-    return diagText[diagID];
+const char* Diag::getDiagText(DiagID diagID) {
+    return diagText[static_cast<uint32_t>(diagID)];
 }
 
-llvm::SourceMgr::DiagKind Diag::getDiagKind(uint32_t diagID) {
-    return diagKind[diagID];
+llvm::SourceMgr::DiagKind Diag::getDiagKind(DiagID diagID) {
+    return diagKind[static_cast<uint32_t>(diagID)];
 }

@@ -9,4 +9,5 @@ add_mxrlang_tool(mxrlang
 target_link_libraries(mxrlang
   PRIVATE
   mxrlangBasic
+  mxrlangLexer
   )

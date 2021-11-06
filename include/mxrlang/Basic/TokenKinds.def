@@ -1,0 +1,23 @@
+#ifndef TOK
+#define TOK(ID)
+#endif
+#ifndef PUNCTUATOR
+#define PUNCTUATOR(ID, SP) TOK(ID)
+#endif
+#ifndef KEYWORD
+#define KEYWORD(ID, FLAG) TOK(kw_ ## ID)
+#endif
+
+TOK(unknown)             // Not a token.
+TOK(eof)                 // End of file.
+TOK(identifier)          // abcde123
+TOK(integer_literal)     // 123
+
+PUNCTUATOR(colonequal,      ":=")
+PUNCTUATOR(semicolon,       ";")
+
+KEYWORD(VAR,                KEYALL)
+
+#undef KEYWORD
+#undef PUNCTUATOR
+#undef TOK

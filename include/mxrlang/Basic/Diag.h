@@ -12,12 +12,13 @@
 namespace mxrlang {
 
 enum class DiagID {
+#define DIAG(ID, Level, Msg) ID,
 #include "Diag.def"
 };
 
 class Diag {
-    static const char* getDiagText(uint32_t diagType);
-    static llvm::SourceMgr::DiagKind getDiagKind(uint32_t diagID);
+    static const char* getDiagText(DiagID diagType);
+    static llvm::SourceMgr::DiagKind getDiagKind(DiagID diagID);
 
     llvm::SourceMgr& srcMgr;
     uint32_t numErrs;
@@ -28,7 +29,7 @@ public:
     uint32_t getNumErrs() { return numErrs; }
 
     template <typename... Args>
-    void report(llvm::SMLoc loc, uint32_t diagID, Args&&... args) {
+    void report(llvm::SMLoc loc, DiagID diagID, Args&&... args) {
         auto msg = llvm::formatv(getDiagText(diagID),
                                  std::forward<Args>(args)...)
                 .str();

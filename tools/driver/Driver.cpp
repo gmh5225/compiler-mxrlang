@@ -5,6 +5,7 @@
 #include "llvm/Support/SourceMgr.h"
 
 #include "Diag.h"
+#include "Lexer.h"
 
 using namespace mxrlang;
 
@@ -23,6 +24,15 @@ int main(int argc_, const char **argv_) {
 
         llvm::SourceMgr srcMgr;
         Diag diag(srcMgr);
+
+        // Tell SrcMgr about this buffer, which is what the
+        // parser will pick up.
+        srcMgr.AddNewSourceBuffer(std::move(*file), llvm::SMLoc());
+
+        Lexer lexer(srcMgr, diag);
+        auto tokens = std::move(lexer.lex());
+
+        llvm::outs() << fileName << " read!\n";
     }
 
     return 0;

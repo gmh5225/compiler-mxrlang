@@ -2,4 +2,7 @@
 #define DIAG(ID, Level, Msg)
 #endif
 
+// Lexer errors
+DIAG(err_unknown_token, Error, "Unknown token.")
+
 #undef DIAG

@@ -10,3 +10,7 @@
 # build artefacts
 
 build/
+
+# test examples
+
+examples/

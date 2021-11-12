@@ -10,4 +10,5 @@ target_link_libraries(mxrlang
   PRIVATE
   mxrlangBasic
   mxrlangLexer
+  mxrlangParser
   )

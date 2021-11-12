@@ -6,6 +6,7 @@
 
 #include "Diag.h"
 #include "Lexer.h"
+#include "Parser.h"
 
 using namespace mxrlang;
 
@@ -32,6 +33,10 @@ int main(int argc_, const char **argv_) {
         Lexer lexer(srcMgr, diag);
         auto tokens = std::move(lexer.lex());
 
+        Parser parser(tokens, diag);
+        auto moduleDecl = parser.parse();
+
+        (void)moduleDecl;
         llvm::outs() << fileName << " read!\n";
     }
 

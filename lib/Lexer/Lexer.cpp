@@ -50,6 +50,7 @@ void Lexer::identifier(Token& result) {
     llvm::StringRef name(start, end - start);
     formToken(result, end,
               keywords.getKeyword(name, TokenKind::identifier));
+    (void)result.getName();
 }
 
 void Lexer::number(Token& result) {

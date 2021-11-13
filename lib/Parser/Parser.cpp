@@ -107,7 +107,7 @@ Stmt* Parser::varDeclaration() {
         initializer = expression();
 
     consume(TokenKind::semicolon, DiagID::err_expect_semicol);
-    return new VarStmt(name.getName(), initializer);
+    return new VarStmt(name.getIdentifier(), initializer);
 }
 
 Expr* Parser::expression() {

@@ -33,9 +33,11 @@ include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include/mxrlang/Basic
   ${CMAKE_CURRENT_BINARY_DIR}/include/mxrlang/Lexer
   ${CMAKE_CURRENT_BINARY_DIR}/include/mxrlang/Parser
+  ${CMAKE_CURRENT_BINARY_DIR}/include/mxrlang/ASTPasses
   ${CMAKE_CURRENT_SOURCE_DIR}/include/mxrlang/Basic
   ${CMAKE_CURRENT_SOURCE_DIR}/include/mxrlang/Lexer
   ${CMAKE_CURRENT_SOURCE_DIR}/include/mxrlang/Parser
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/mxrlang/ASTPasses
   )
 
 add_subdirectory(lib)

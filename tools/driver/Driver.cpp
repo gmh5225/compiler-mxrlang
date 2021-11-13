@@ -4,6 +4,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
 
+#include "ASTPrinter.h"
 #include "Diag.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -33,10 +34,18 @@ int main(int argc_, const char **argv_) {
         Lexer lexer(srcMgr, diag);
         auto tokens = std::move(lexer.lex());
 
+        if (diag.getNumErrs() > 0)
+            return 0;
+
         Parser parser(tokens, diag);
         auto moduleDecl = parser.parse();
 
-        (void)moduleDecl;
+        if (diag.getNumErrs() > 0)
+            return 0;
+
+        ASTPrinter astPrinter;
+        astPrinter.run(moduleDecl);
+
         llvm::outs() << fileName << " read!\n";
     }
 

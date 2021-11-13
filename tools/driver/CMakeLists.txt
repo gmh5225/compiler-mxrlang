@@ -11,4 +11,5 @@ target_link_libraries(mxrlang
   mxrlangBasic
   mxrlangLexer
   mxrlangParser
+  mxrlangASTPasses
   )

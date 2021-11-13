@@ -43,13 +43,13 @@ public:
 
     uint32_t getLength() { return length; }
 
-    llvm::StringRef getIdentifier() {
+    llvm::StringRef getIdentifier() const {
         assert(is(TokenKind::identifier) &&
                "Cannot get identifier of non-identifier.");
         return llvm::StringRef(lexeme, length);
     }
 
-    llvm::StringRef getLiteralData() {
+    llvm::StringRef getLiteralData() const {
         assert(is(TokenKind::integer_literal) &&
                "Cannot get literal data of non-literal.");
         return llvm::StringRef(lexeme, length);

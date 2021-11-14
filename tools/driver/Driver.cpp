@@ -8,6 +8,7 @@
 #include "Diag.h"
 #include "Lexer.h"
 #include "Parser.h"
+#include "SemaCheck.h"
 
 using namespace mxrlang;
 
@@ -45,6 +46,9 @@ int main(int argc_, const char **argv_) {
 
         ASTPrinter astPrinter;
         astPrinter.run(moduleDecl);
+
+        SemaCheck semaCheck(diag);
+        semaCheck.run(moduleDecl);
 
         llvm::outs() << fileName << " read!\n";
     }

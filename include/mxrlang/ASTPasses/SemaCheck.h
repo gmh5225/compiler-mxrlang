@@ -1,14 +1,20 @@
-#ifndef ASTPRINTER_H
-#define ASTPRINTER_H
+#ifndef SEMACHECK_H
+#define SEMACHECK_H
 
-#include "Tree.h"
+#include "Diag.h"
+#include "Environment.h"
+#include "ScopeMgr.h"
 
 namespace mxrlang {
 
-class ASTPrinter : public ExprVisitor,
-                   public StmtVisitor {
-    std::string result;
-    uint16_t currStmt = 1;
+class SemaCheck : public ExprVisitor,
+                  public StmtVisitor {
+    friend class ScopeMgr<SemaCheck, Decl>;
+    using SemaCheckScopeMgr = ScopeMgr<SemaCheck, Decl>;
+
+    Environment<Decl>* env = nullptr;
+
+    Diag& diag;
 
     // Expression visitor methods
     void visit(LiteralExpr* expr) override;
@@ -25,16 +31,14 @@ class ASTPrinter : public ExprVisitor,
     }
 
 public:
+    SemaCheck(Diag& diag) : diag(diag) {}
+
     // Runner.
     void run(ModuleStmt* moduleDecl) {
-        llvm::outs() << "----------- AST dump --------------\n";
-        result.clear();
         evaluate(moduleDecl);
-        llvm::outs() << result;
-        llvm::outs() << "-----------------------------------\n\n\n";
     }
 };
 
-}
+} // namespace mxrlang
 
-#endif // ASTPRINTER_H
+#endif // SEMACHECK_H

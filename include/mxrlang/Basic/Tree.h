@@ -4,6 +4,7 @@
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SMLoc.h"
 
 #include <vector>
 
@@ -15,6 +16,17 @@ namespace mxrlang {
 class Stmt;
 
 using Stmts = std::vector<Stmt*>;
+
+// The following class describes a declaration.
+
+class Decl {
+    llvm::StringRef name;
+
+public:
+    Decl(llvm::StringRef name) : name(name) {}
+
+    llvm::StringRef getName() const { return name; }
+};
 
 // The following classes describe expression nodes of the AST.
 
@@ -33,9 +45,10 @@ public:
 
 private:
     ExprKind kind;
+    llvm::SMLoc loc;
 
 public:
-    Expr(ExprKind kind) : kind(kind) {}
+    Expr(ExprKind kind, llvm::SMLoc loc) : kind(kind), loc(loc) {}
     virtual ~Expr() = default;
 
     // Pure virtual accept method of the visitor pattern.
@@ -47,14 +60,15 @@ public:
     virtual Expr* makeAssignExpr(Expr* left, Expr* right) { return nullptr; }
 
     ExprKind getKind() const { return kind; }
+    llvm::SMLoc getLoc() const { return loc; }
 };
 
 class LiteralExpr : public Expr {
     llvm::APSInt value;
 
 public:
-    LiteralExpr(llvm::StringRef valueString)
-        : Expr(ExprKind::Literal) {
+    LiteralExpr(llvm::StringRef valueString, llvm::SMLoc loc)
+        : Expr(ExprKind::Literal, loc) {
         value = llvm::APInt(/* numBits= */ 64, valueString, /* radix= */ 10);
         value.setIsSigned(true);
     }
@@ -93,26 +107,30 @@ public:
 
 private:
     StmtKind kind;
+    llvm::SMLoc loc;
 
 public:
-    Stmt(StmtKind kind) : kind(kind) {}
+    Stmt(StmtKind kind, llvm::SMLoc loc) : kind(kind), loc(loc) {}
     virtual ~Stmt() = default;
 
     // Pure virtual accept method of the visitor pattern.
     virtual void accept(StmtVisitor* visitor) = 0;
 
     StmtKind getKind() const { return kind; }
+    llvm::SMLoc getLoc() const { return loc; }
 };
 
 // Statement node describing a function definition.
 // Currently it only holds the top level "main" function.
-class FunStmt : public Stmt {
+class FunStmt : public Stmt,
+                public Decl {
     llvm::StringRef name;
     Stmts body;
 
 public:
-    FunStmt(llvm::StringRef name, Stmts&& body)
-        : Stmt(StmtKind::Fun), name(name), body(std::move(body)) {}
+    FunStmt(llvm::StringRef name, Stmts&& body, llvm::SMLoc loc)
+        : Stmt(StmtKind::Fun, loc), Decl(name),
+          name(name), body(std::move(body)) {}
 
     llvm::StringRef getName() { return name; }
     Stmts& getBody() { return body; }
@@ -128,13 +146,15 @@ public:
 
 // Statement node describing a module.
 // Currently only one module supported per program.
-class ModuleStmt : public Stmt {
+class ModuleStmt : public Stmt,
+                   public Decl {
     llvm::StringRef name;
     Stmts body;
 
 public:
-    ModuleStmt(llvm::StringRef name, Stmts&& body)
-        : Stmt(StmtKind::Module), name(name), body(std::move(body)) {}
+    ModuleStmt(llvm::StringRef name, Stmts&& body, llvm::SMLoc loc)
+        : Stmt(StmtKind::Module, loc), Decl(name),
+          name(name), body(std::move(body)) {}
 
     llvm::StringRef getName() { return name; }
     Stmts& getBody() { return body; }
@@ -149,13 +169,15 @@ public:
 };
 
 // Statement node decribing a variable declaration/definition.
-class VarStmt : public Stmt {
+class VarStmt : public Stmt,
+                public Decl {
     llvm::StringRef name;
     Expr* initializer;
 
 public:
-    VarStmt(llvm::StringRef name, Expr* initializer)
-        : Stmt(StmtKind::Var), name(name), initializer(initializer) {}
+    VarStmt(llvm::StringRef name, Expr* initializer, llvm::SMLoc loc)
+        : Stmt(StmtKind::Var, loc), Decl(name),
+          name(name), initializer(initializer) {}
 
     llvm::StringRef getName() { return name; }
     Expr* getInitializer() { return initializer; }

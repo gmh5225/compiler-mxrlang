@@ -80,12 +80,14 @@ Parser::ParserError Parser::error(const Token& tok, DiagID id) {
 
 FunStmt* Parser::funDeclaration() {
     Stmts stmts;
-    // For now, just parse the whole file, because the whole file is a singular
-    // function.
+    Token& funToken = peek();
+    // For now, just parse the whole file, because the whole file is a
+    // singular function.
     while (!isAtEnd())
         stmts.emplace_back(declaration());
 
-    return new FunStmt("main", std::move(stmts));
+    return new FunStmt("main", std::move(stmts),
+                       funToken.getLocation());
 }
 
 Stmt* Parser::declaration() {
@@ -107,7 +109,8 @@ Stmt* Parser::varDeclaration() {
         initializer = expression();
 
     consume(TokenKind::semicolon, DiagID::err_expect_semicol);
-    return new VarStmt(name.getIdentifier(), initializer);
+    return new VarStmt(name.getIdentifier(), initializer,
+                       name.getLocation());
 }
 
 Expr* Parser::expression() {
@@ -116,17 +119,20 @@ Expr* Parser::expression() {
 
 Expr* Parser::primary() {
     if (match(TokenKind::integer_literal))
-        return new LiteralExpr(previous().getLiteralData());
+        return new LiteralExpr(previous().getLiteralData(),
+                               previous().getLocation());
 
     throw error(peek(), DiagID::err_expect_expr);
 }
 
 // Parse the token stream and return the root of the AST.
 ModuleStmt* Parser::parse() {
-    // Currently, only a single module exists, which contains a single implicit
-    // "main" funcion.
+    // Currently, only a single module exists, which contains a single
+    // implicit "main" function.
+    Token& moduleToken = peek();
     Stmts stmts{funDeclaration()};
 
-    ModuleStmt* moduleStmt = new ModuleStmt("main", std::move(stmts));
+    ModuleStmt* moduleStmt = new ModuleStmt("main", std::move(stmts),
+                                            moduleToken.getLocation());
     return moduleStmt;
 }

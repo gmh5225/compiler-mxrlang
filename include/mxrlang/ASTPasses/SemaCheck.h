@@ -2,7 +2,6 @@
 #define SEMACHECK_H
 
 #include "Diag.h"
-#include "Environment.h"
 #include "ScopeMgr.h"
 
 namespace mxrlang {

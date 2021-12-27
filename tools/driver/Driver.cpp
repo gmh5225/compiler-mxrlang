@@ -13,6 +13,7 @@
 #include "llvm/Target/TargetMachine.h"
 
 #include "ASTPrinter.h"
+#include "CodeGen.h"
 #include "Diag.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -172,6 +173,14 @@ int main(int argc_, const char **argv_) {
 
         SemaCheck semaCheck(diag);
         semaCheck.run(moduleDecl);
+
+        if (moduleDecl && !diag.getNumErrs()) {
+            CodeGen codeGen(TM, fileName, diag);
+            codeGen.run(moduleDecl);
+            if (!emit(argv_[0], codeGen.getModule(), TM, fileName))
+                llvm::WithColor::error(llvm::errs(), argv_[0]) << "Error"
+                    " writing output\n";
+        }
     }
 
     return 0;

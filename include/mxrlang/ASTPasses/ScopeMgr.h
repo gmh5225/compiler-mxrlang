@@ -7,7 +7,8 @@
 
 namespace mxrlang {
 
-// Manages the creation and destruction of environment scopes during an AST pass.
+// Manages the creation and destruction of environment scopes during
+// an AST pass.
 template <typename PassTy, typename T>
 class ScopeMgr {
     // AST pass which needs environment management.

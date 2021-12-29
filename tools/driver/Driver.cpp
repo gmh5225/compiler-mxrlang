@@ -11,6 +11,7 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/Utils.h"
 
 #include "ASTPrinter.h"
 #include "CodeGen.h"
@@ -36,93 +37,101 @@ static llvm::cl::opt<bool>
 static const char* Head = "mxrlang - Mxrlang compiler";
 
 void printVersion(llvm::raw_ostream &OS) {
-  OS << Head << " " << getMxrlangVersion() << "\n";
-  OS << "  Default target: "
+    OS << Head << " " << getMxrlangVersion() << "\n";
+    OS << "  Default target: "
      << llvm::sys::getDefaultTargetTriple() << "\n";
-  std::string CPU(llvm::sys::getHostCPUName());
-  OS << "  Host CPU: " << CPU << "\n";
-  OS << "\n";
-  OS.flush();
-  llvm::TargetRegistry::printRegisteredTargetsForVersion(
-      OS);
-  exit(EXIT_SUCCESS);
+    std::string CPU(llvm::sys::getHostCPUName());
+    OS << "  Host CPU: " << CPU << "\n";
+    OS << "\n";
+    OS.flush();
+    llvm::TargetRegistry::printRegisteredTargetsForVersion(
+                OS);
+    exit(EXIT_SUCCESS);
 }
 
 llvm::TargetMachine* createTargetMachine(const char* argv0) {
-  llvm::Triple triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
+    llvm::Triple triple = llvm::Triple(llvm::sys::getDefaultTargetTriple());
 
-  llvm::TargetOptions targetOptions =
-      llvm::codegen::InitTargetOptionsFromCodeGenFlags(triple);
-  std::string cpuStr = llvm::codegen::getCPUStr();
-  std::string featureStr = llvm::codegen::getFeaturesStr();
+    llvm::TargetOptions targetOptions =
+        llvm::codegen::InitTargetOptionsFromCodeGenFlags(triple);
+    std::string cpuStr = llvm::codegen::getCPUStr();
+    std::string featureStr = llvm::codegen::getFeaturesStr();
 
-  std::string error;
-  const llvm::Target* target =
-      llvm::TargetRegistry::lookupTarget(llvm::codegen::getMArch(), triple,
-                                         error);
+    std::string error;
+    const llvm::Target* target =
+        llvm::TargetRegistry::lookupTarget(llvm::codegen::getMArch(),
+                                           triple, error);
 
-  if (!target) {
-    llvm::WithColor::error(llvm::errs(), argv0) << error;
-    return nullptr;
-  }
+    if (!target) {
+        llvm::WithColor::error(llvm::errs(), argv0) << error;
+        return nullptr;
+    }
 
-  llvm::TargetMachine *TM = target->createTargetMachine(
-      triple.getTriple(), cpuStr, featureStr, targetOptions,
-      llvm::Optional<llvm::Reloc::Model>(llvm::codegen::getRelocModel()));
-  return TM;
+    llvm::TargetMachine *TM = target->createTargetMachine(
+        triple.getTriple(), cpuStr, featureStr, targetOptions,
+        llvm::Optional<llvm::Reloc::Model>(llvm::codegen::getRelocModel()));
+    return TM;
 }
 
+// Emit an output file (.s or .ll)
 bool emit(llvm::StringRef argv0, llvm::Module* M,
           llvm::TargetMachine* TM,
           llvm::StringRef inputFilename) {
-  llvm::CodeGenFileType fileType = llvm::codegen::getFileType();
-  std::string outputFilename;
-  if (inputFilename == "-") {
-    outputFilename = "-";
-  } else {
-    if (inputFilename.endswith(".mxr") ||
-        inputFilename.endswith(".mxr"))
-      outputFilename = inputFilename.drop_back(4).str();
-    else
-      outputFilename = inputFilename.str();
-    switch (fileType) {
-    case llvm::CGFT_AssemblyFile:
-      outputFilename.append(emitLLVM ? ".ll" : ".s");
-      break;
-    case llvm::CGFT_ObjectFile:
-      outputFilename.append(".o");
-      break;
-    case llvm::CGFT_Null:
-      outputFilename.append(".null");
-      break;
+    llvm::CodeGenFileType fileType = llvm::codegen::getFileType();
+    std::string outputFilename;
+    // REPL
+    if (inputFilename == "-") {
+        outputFilename = "-";
+    } else {
+        // Input file sould have an .mxr extension.
+        // Output file will have the same name as the input file (with
+        // different extension).
+        if (inputFilename.endswith(".mxr"))
+            outputFilename = inputFilename.drop_back(4).str();
+        else
+            outputFilename = inputFilename.str();
+        switch (fileType) {
+        case llvm::CGFT_AssemblyFile:
+            outputFilename.append(emitLLVM ? ".ll" : ".s");
+            break;
+        case llvm::CGFT_ObjectFile:
+            outputFilename.append(".o");
+            break;
+        case llvm::CGFT_Null:
+            outputFilename.append(".null");
+            break;
+        }
     }
-  }
 
-  // Open the file.
-  std::error_code EC;
-  llvm::sys::fs::OpenFlags openFlags = llvm::sys::fs::OF_None;
-  if (fileType == llvm::CGFT_AssemblyFile)
-    openFlags |= llvm::sys::fs::OF_Text;
-  auto out = std::make_unique<llvm::ToolOutputFile>(
-      outputFilename, EC, openFlags);
-  if (EC) {
-    llvm::WithColor::error(llvm::errs(), argv0) << EC.message() << '\n';
-    return false;
-  }
-
-  llvm::legacy::PassManager PM;
-  if (fileType == llvm::CGFT_AssemblyFile && emitLLVM) {
-    PM.add(llvm::createPrintModulePass(out->os()));
-  } else {
-    if (TM->addPassesToEmitFile(PM, out->os(), nullptr,
-                                fileType)) {
-      llvm::WithColor::error() << "No support for file type\n";
-      return false;
+    // Open the file.
+    std::error_code EC;
+    llvm::sys::fs::OpenFlags openFlags = llvm::sys::fs::OF_None;
+    if (fileType == llvm::CGFT_AssemblyFile)
+        openFlags |= llvm::sys::fs::OF_Text;
+    auto out = std::make_unique<llvm::ToolOutputFile>(
+                outputFilename, EC, openFlags);
+    if (EC) {
+        llvm::WithColor::error(llvm::errs(), argv0) << EC.message() << '\n';
+        return false;
     }
-  }
-  PM.run(*M);
-  out->keep();
-  return true;
+
+    // Create the pass manager and add passes.
+    llvm::legacy::PassManager PM;
+    // Uncomment to enable alloca -> SSA reg conversion.
+    // PM.add(llvm::createPromoteMemoryToRegisterPass());
+    if (fileType == llvm::CGFT_AssemblyFile && emitLLVM) {
+        PM.add(llvm::createPrintModulePass(out->os()));
+    } else {
+        if (TM->addPassesToEmitFile(PM, out->os(), nullptr,
+                                    fileType)) {
+            llvm::WithColor::error() << "No support for file type\n";
+            return false;
+        }
+    }
+    // Run the optimization passes.
+    PM.run(*M);
+    out->keep();
+    return true;
 }
 
 int main(int argc_, const char **argv_) {
@@ -141,6 +150,7 @@ int main(int argc_, const char **argv_) {
       exit(EXIT_FAILURE);
 
     for (const auto& fileName : inputFiles) {
+        // Get file buffer.
         llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> file =
                 llvm::MemoryBuffer::getFile(fileName);
         if (auto buffErr = file.getError()) {
@@ -150,30 +160,36 @@ int main(int argc_, const char **argv_) {
         }
 
         llvm::SourceMgr srcMgr;
+        // Diagnostics manager, used for error reports.
         Diag diag(srcMgr);
 
         // Tell SrcMgr about this buffer, which is what the
         // parser will pick up.
         srcMgr.AddNewSourceBuffer(std::move(*file), llvm::SMLoc());
 
+        // Create and run the lexer.
         Lexer lexer(srcMgr, diag);
         auto tokens = std::move(lexer.lex());
 
         if (diag.getNumErrs() > 0)
             return 0;
 
+        // Create and run the parser.
         Parser parser(tokens, diag);
         auto moduleDecl = parser.parse();
 
         if (diag.getNumErrs() > 0)
             return 0;
 
+        // Helper pass which prints the AST.
         ASTPrinter astPrinter;
         astPrinter.run(moduleDecl);
 
+        // Create and run the semantic checker.
         SemaCheck semaCheck(diag);
         semaCheck.run(moduleDecl);
 
+        // Generate code for this module.
         if (moduleDecl && !diag.getNumErrs()) {
             CodeGen codeGen(TM, fileName, diag);
             codeGen.run(moduleDecl);

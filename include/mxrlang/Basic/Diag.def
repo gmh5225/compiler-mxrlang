@@ -10,8 +10,12 @@ DIAG(err_expect_kw_var, Error, "Expected VAR.")
 DIAG(err_expect_var_name, Error, "Expected variable name.")
 DIAG(err_expect_semicol, Error, "Expected semicolon.")
 DIAG(err_expect_expr, Error, "Expected expression.")
+DIAG(err_expect_stmt, Error, "Expected statement.")
 
 // Semantic check errors
 DIAG(err_var_redefine, Error, "Redefinition of an existing variable.")
+DIAG(err_var_undefined, Error, "Undefined variable.")
+DIAG(err_ret_val_undefined, Error, "Must have a return value.")
+DIAG(err_no_return, Error, "Function must have a return statement.")
 
 #undef DIAG

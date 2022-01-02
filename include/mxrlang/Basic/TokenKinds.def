@@ -16,6 +16,7 @@ TOK(integer_literal)     // 123
 PUNCTUATOR(colonequal,      ":=")
 PUNCTUATOR(semicolon,       ";")
 
+KEYWORD(RETURN,             KEYALL)
 KEYWORD(VAR,                KEYALL)
 
 #undef KEYWORD

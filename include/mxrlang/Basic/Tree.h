@@ -31,16 +31,19 @@ public:
 // The following classes describe expression nodes of the AST.
 
 class LiteralExpr;
+class VarExpr;
 
 class ExprVisitor {
 public:
     virtual void visit(LiteralExpr* expr) = 0;
+    virtual void visit(VarExpr* expr) = 0;
 };
 
 class Expr {
 public:
     enum class ExprKind {
-        Literal
+        Literal,
+        Var
     };
 
 private:
@@ -79,8 +82,26 @@ public:
         visitor->visit(this);
     }
 
-    static bool classof(const Expr *E) {
+    static bool classof(const Expr* E) {
       return E->getKind() == ExprKind::Literal;
+    }
+};
+
+class VarExpr : public Expr {
+    llvm::StringRef name;
+
+public:
+    VarExpr(llvm::StringRef name, llvm::SMLoc loc)
+        : Expr(ExprKind::Var, loc), name(name) {}
+
+    llvm::StringRef getName() { return name; }
+
+    virtual void accept(ExprVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Expr* E) {
+        return E->getKind() == ExprKind::Var;
     }
 };
 
@@ -88,12 +109,14 @@ public:
 
 class FunStmt;
 class ModuleStmt;
+class ReturnStmt;
 class VarStmt;
 
 class StmtVisitor {
 public:
     virtual void visit(FunStmt* stmt) = 0;
     virtual void visit(ModuleStmt* stmt) = 0;
+    virtual void visit(ReturnStmt* stmt) = 0;
     virtual void visit(VarStmt* stmt) = 0;
 };
 
@@ -102,6 +125,7 @@ public:
     enum class StmtKind {
         Fun,
         Module,
+        Return,
         Var
     };
 
@@ -165,6 +189,25 @@ public:
 
     static bool classof(const Stmt *S) {
       return S->getKind() == StmtKind::Module;
+    }
+};
+
+// Statement node describing a return statement.
+class ReturnStmt : public Stmt {
+    Expr* retExpr;
+
+public:
+    ReturnStmt(Expr* retExpr, llvm::SMLoc loc)
+        : Stmt(StmtKind::Return, loc), retExpr(retExpr) {}
+
+    Expr* getRetExpr() { return retExpr; }
+
+    virtual void accept(StmtVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Stmt* S) {
+        return S->getKind() == StmtKind::Return;
     }
 };
 

@@ -14,13 +14,21 @@ llvm::Function *CodeGen::createFunction(FunStmt* stmt,
                                   stmt->getName(), module.get());
 }
 
-void CodeGen::visit(LiteralExpr *expr) {
+void CodeGen::visit(LiteralExpr* expr) {
     auto* lit = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx),
                                        expr->getValue());
     interResult = lit;
 }
 
-void CodeGen::visit(FunStmt *stmt) {
+void CodeGen::visit(VarExpr* expr) {
+    auto* valAlloca = env->find(expr->getName());
+    assert(valAlloca && "Undefined alloca");
+
+    interResult = builder.CreateLoad(llvm::Type::getInt64Ty(ctx),
+                                     valAlloca, expr->getName());
+}
+
+void CodeGen::visit(FunStmt* stmt) {
     auto* funTy = createFunctionType(stmt);
     auto* fun = createFunction(stmt, funTy);
     currFun = fun;
@@ -32,23 +40,25 @@ void CodeGen::visit(FunStmt *stmt) {
 
     AllocaScopeMgr scopeMgr(*this);
     for (auto funStmt : stmt->getBody())
-        funStmt->accept(this);
-
-    // Returns zero.
-    builder.CreateRet(llvm::Constant::getNullValue(
-        llvm::Type::getInt64Ty(ctx)));
+        evaluate(funStmt);
 }
 
-void CodeGen::visit(ModuleStmt *stmt) {
+void CodeGen::visit(ModuleStmt* stmt) {
     AllocaScopeMgr scopeMgr(*this);
 
     // FIXME: Currently only "main" function exists, which is implicitly
     // declared.
     assert(stmt->getBody().size() == 1);
-    stmt->getBody().at(0)->accept(this);
+    evaluate(stmt->getBody().at(0));
 }
 
-void CodeGen::visit(VarStmt *stmt) {
+void CodeGen::visit(ReturnStmt* stmt) {
+    evaluate(stmt->getRetExpr());
+
+    builder.CreateRet(interResult);
+}
+
+void CodeGen::visit(VarStmt* stmt) {
     // Create an alloca for this variable in the entry BB of the current
     // function...
     llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
@@ -61,7 +71,7 @@ void CodeGen::visit(VarStmt *stmt) {
     // Generate the code for the variable initializer (if it exists),
     // and store the result in the alloca.
     if (stmt->getInitializer()) {
-        stmt->getInitializer()->accept(this);
+        evaluate(stmt->getInitializer());
         builder.CreateStore(interResult, alloca);
     }
 }

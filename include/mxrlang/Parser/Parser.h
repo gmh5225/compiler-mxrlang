@@ -46,6 +46,8 @@ class Parser {
     // Productions.
     FunStmt* funDeclaration();
     Stmt* declaration();
+    Stmt* returnStmt();
+    Stmt* statement();
     Stmt* varDeclaration();
 
     Expr* expression();

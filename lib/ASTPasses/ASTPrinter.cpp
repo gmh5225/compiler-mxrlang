@@ -14,12 +14,20 @@ void ASTPrinter::visit(ModuleStmt* stmt) {
 }
 
 void ASTPrinter::visit(FunStmt* stmt) {
-    for (auto st : stmt->getBody()) {
-        assert(llvm::isa<VarStmt>(st) && "Currently only variable declarations"
-               " allowed in module.");
-
+    for (auto st : stmt->getBody())
         evaluate(st);
-    }
+}
+
+void ASTPrinter::visit(ReturnStmt* stmt) {
+    result += "Statement " + std::to_string(currStmt++) + "\n";
+
+    result += "(return ";
+
+    // If there is a return value, print it.
+    if (stmt->getRetExpr())
+        evaluate(stmt->getRetExpr());
+
+    result += ")\n";
 }
 
 void ASTPrinter::visit(VarStmt* stmt) {
@@ -45,4 +53,8 @@ void ASTPrinter::visit(LiteralExpr* expr) {
     expr->getValue().toString(literal);
 
     result += std::string(literal);
+}
+
+void ASTPrinter::visit(VarExpr* expr) {
+    result += expr->getName().str();
 }

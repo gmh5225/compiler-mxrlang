@@ -15,12 +15,17 @@ class SemaCheck : public ExprVisitor,
 
     Diag& diag;
 
+    // Flags whether we've seen a return statement in a function.
+    bool seenReturn = false;
+
     // Expression visitor methods
     void visit(LiteralExpr* expr) override;
+    void visit(VarExpr* expr) override;
 
     // Statement visitor methods
     void visit(FunStmt* stmt) override;
     void visit(ModuleStmt* stmt) override;
+    void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;
 
     // Helper function for evaluating an expression or a statement.

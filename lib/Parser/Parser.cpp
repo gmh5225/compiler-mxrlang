@@ -92,15 +92,33 @@ FunStmt* Parser::funDeclaration() {
 
 Stmt* Parser::declaration() {
     try {
-        return varDeclaration();
+        if (match(TokenKind::kw_VAR))
+            return varDeclaration();
+        return statement();
     } catch (ParserError& e) {
         synchronize();
         return nullptr;
     }
 }
 
+Stmt* Parser::statement() {
+    if (match(TokenKind::kw_RETURN))
+        return returnStmt();
+
+    throw error(peek(), DiagID::err_expect_stmt);
+}
+
+Stmt* Parser::returnStmt() {
+    Expr* retExpr = nullptr;
+
+    if (!check(TokenKind::semicolon))
+        retExpr = expression();
+
+    consume(TokenKind::semicolon, DiagID::err_expect_semicol);
+    return new ReturnStmt(retExpr, previous().getLocation());
+}
+
 Stmt* Parser::varDeclaration() {
-    consume(TokenKind::kw_VAR, DiagID::err_expect_kw_var);
     const Token& name = consume(TokenKind::identifier,
                                 DiagID::err_expect_var_name);
 
@@ -121,6 +139,9 @@ Expr* Parser::primary() {
     if (match(TokenKind::integer_literal))
         return new LiteralExpr(previous().getLiteralData(),
                                previous().getLocation());
+    if (match(TokenKind::identifier))
+        return new VarExpr(previous().getIdentifier(),
+                           previous().getLocation());
 
     throw error(peek(), DiagID::err_expect_expr);
 }

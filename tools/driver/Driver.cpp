@@ -181,13 +181,13 @@ int main(int argc_, const char **argv_) {
         if (diag.getNumErrs() > 0)
             return 0;
 
-        // Helper pass which prints the AST.
-        ASTPrinter astPrinter;
-        astPrinter.run(moduleDecl);
-
         // Create and run the semantic checker.
         SemaCheck semaCheck(diag);
         semaCheck.run(moduleDecl);
+
+        // Helper pass which prints the AST.
+        ASTPrinter astPrinter;
+        astPrinter.run(moduleDecl);
 
         // Generate code for this module.
         if (moduleDecl && !diag.getNumErrs()) {

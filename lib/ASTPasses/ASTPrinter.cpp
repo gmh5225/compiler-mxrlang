@@ -36,6 +36,9 @@ void ASTPrinter::visit(VarStmt* stmt) {
     // Print the operation.
     result += "(var ";
 
+    // Print the type.
+    result += stmt->getType()->toString() + " ";
+
     // Print the name.
     result += stmt->getName().str();
 
@@ -48,13 +51,15 @@ void ASTPrinter::visit(VarStmt* stmt) {
     result += ")\n";
 }
 
-void ASTPrinter::visit(LiteralExpr* expr) {
+void ASTPrinter::visit(IntLiteralExpr* expr) {
     llvm::SmallString<30> literal;
     expr->getValue().toString(literal);
 
-    result += std::string(literal);
+    result += "(" + std::string(literal) + " " +
+              expr->getType()->toString() + ")";
 }
 
 void ASTPrinter::visit(VarExpr* expr) {
-    result += expr->getName().str();
+    result += "(" + expr->getName().str() + " " +
+              expr->getType()->toString() + ")";
 }

@@ -1,6 +1,8 @@
 #ifndef TREE_H
 #define TREE_H
 
+#include "Type.h"
+
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
@@ -21,21 +23,24 @@ using Stmts = std::vector<Stmt*>;
 
 class Decl {
     llvm::StringRef name;
+    Type* type;
 
 public:
-    Decl(llvm::StringRef name) : name(name) {}
+    Decl(llvm::StringRef name, Type* type = Type::getIntType())
+        : name(name), type(type) {}
 
     llvm::StringRef getName() const { return name; }
+    Type* getType() { return type; }
 };
 
 // The following classes describe expression nodes of the AST.
 
-class LiteralExpr;
+class IntLiteralExpr;
 class VarExpr;
 
 class ExprVisitor {
 public:
-    virtual void visit(LiteralExpr* expr) = 0;
+    virtual void visit(IntLiteralExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
 };
 
@@ -49,9 +54,12 @@ public:
 private:
     ExprKind kind;
     llvm::SMLoc loc;
+    // Every expression should have a type.
+    Type* type;
 
 public:
-    Expr(ExprKind kind, llvm::SMLoc loc) : kind(kind), loc(loc) {}
+    Expr(ExprKind kind, llvm::SMLoc loc, Type* type = Type::getNoneType())
+        : kind(kind), loc(loc), type(type) {}
     virtual ~Expr() = default;
 
     // Pure virtual accept method of the visitor pattern.
@@ -64,14 +72,17 @@ public:
 
     ExprKind getKind() const { return kind; }
     llvm::SMLoc getLoc() const { return loc; }
+    Type* getType() const { return type; }
+
+    void setType(Type* type) { this->type = type; }
 };
 
-class LiteralExpr : public Expr {
+class IntLiteralExpr : public Expr {
     llvm::APSInt value;
 
 public:
-    LiteralExpr(llvm::StringRef valueString, llvm::SMLoc loc)
-        : Expr(ExprKind::Literal, loc) {
+    IntLiteralExpr(llvm::StringRef valueString, llvm::SMLoc loc)
+        : Expr(ExprKind::Literal, loc, Type::getIntType()) {
         value = llvm::APInt(/* numBits= */ 64, valueString, /* radix= */ 10);
         value.setIsSigned(true);
     }
@@ -218,8 +229,9 @@ class VarStmt : public Stmt,
     Expr* initializer;
 
 public:
-    VarStmt(llvm::StringRef name, Expr* initializer, llvm::SMLoc loc)
-        : Stmt(StmtKind::Var, loc), Decl(name),
+    VarStmt(llvm::StringRef name, Expr* initializer, Type* type,
+            llvm::SMLoc loc)
+        : Stmt(StmtKind::Var, loc), Decl(name, type),
           name(name), initializer(initializer) {}
 
     llvm::StringRef getName() { return name; }

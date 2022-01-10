@@ -8,6 +8,7 @@
 
 #include "Diag.h"
 #include "ScopeMgr.h"
+#include "Type.h"
 
 namespace mxrlang {
 
@@ -40,7 +41,7 @@ class CodeGen : public ExprVisitor,
     llvm::Value* interResult;
 
     // Expression visitor methods
-    void visit(LiteralExpr* expr) override;
+    void visit(IntLiteralExpr* expr) override;
     void visit(VarExpr* expr) override;
 
     // Statement visitor methods
@@ -54,6 +55,9 @@ class CodeGen : public ExprVisitor,
     void evaluate(const T expr) {
         expr->accept(this);
     }
+
+    // Convert mxrlang type to LLVM type.
+    llvm::Type* convertTypeToLLVMType(Type* type);
 
     llvm::FunctionType* createFunctionType(FunStmt* stmt);
     llvm::Function* createFunction(FunStmt* stmt, llvm::FunctionType* type);

@@ -2,12 +2,17 @@
 
 using namespace mxrlang;
 
-void SemaCheck::visit(LiteralExpr* expr) {}
+void SemaCheck::visit(IntLiteralExpr* expr) {}
 
 void SemaCheck::visit(VarExpr* expr) {
     // Report an error if we cannot find this declaration.
-    if (!env->find(expr->getName()))
+    auto* varDecl = env->find(expr->getName());
+    if (!varDecl)
         diag.report(expr->getLoc(), DiagID::err_var_undefined);
+
+    // Match the type of the VarExpr with that of the actual variable
+    // declaration.
+    expr->setType(varDecl->getType());
 }
 
 void SemaCheck::visit(ModuleStmt* stmt) {
@@ -43,4 +48,12 @@ void SemaCheck::visit(VarStmt* stmt) {
     // Report an error if this is a redefinition.
     if (!env->insert(stmt, stmt->getName()))
         diag.report(stmt->getLoc(), DiagID::err_var_redefine);
+
+    if (stmt->getInitializer())
+        evaluate(stmt->getInitializer());
+
+    // Initializer must have a compatible type.
+    if (stmt->getInitializer() &&
+        (stmt->getType() != stmt->getInitializer()->getType()))
+        diag.report(stmt->getLoc(), DiagID::err_incompatible_types);
 }

@@ -46,11 +46,19 @@ Token& Parser::previous() {
 
 // Check whether the next token matches the expected and advance the stream
 // if it does. Conversely, throw an error.
-Token& Parser::consume(TokenKind kind, DiagID diagID) {
+Token& Parser::consume(DiagID diagID, TokenKind kind) {
     if (check(kind))
         return advance();
 
     throw error(peek(), diagID);
+}
+
+template <typename... Ts>
+Token& Parser::consume(DiagID diagID, TokenKind kind, Ts... kinds) {
+    if (check(kind))
+        return advance();
+
+    return consume(diagID, kinds...);
 }
 
 // Discard the (possibly) erroneous tokens until we see one of the
@@ -114,20 +122,25 @@ Stmt* Parser::returnStmt() {
     if (!check(TokenKind::semicolon))
         retExpr = expression();
 
-    consume(TokenKind::semicolon, DiagID::err_expect_semicol);
+    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
     return new ReturnStmt(retExpr, previous().getLocation());
 }
 
 Stmt* Parser::varDeclaration() {
-    const Token& name = consume(TokenKind::identifier,
-                                DiagID::err_expect_var_name);
+    // Must consume a type.
+    const Token& typeTok = consume(DiagID::err_expect_type,
+                                   TokenKind::kw_INT);
+    Type* varType = Type::getTypeFromToken(typeTok);
+
+    const Token& name = consume(DiagID::err_expect_var_name,
+                                TokenKind::identifier);
 
     Expr* initializer = nullptr;
     if (match(TokenKind::colonequal))
         initializer = expression();
 
-    consume(TokenKind::semicolon, DiagID::err_expect_semicol);
-    return new VarStmt(name.getIdentifier(), initializer,
+    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
+    return new VarStmt(name.getIdentifier(), initializer, varType,
                        name.getLocation());
 }
 
@@ -137,7 +150,7 @@ Expr* Parser::expression() {
 
 Expr* Parser::primary() {
     if (match(TokenKind::integer_literal))
-        return new LiteralExpr(previous().getLiteralData(),
+        return new IntLiteralExpr(previous().getLiteralData(),
                                previous().getLocation());
     if (match(TokenKind::identifier))
         return new VarExpr(previous().getIdentifier(),

@@ -11,7 +11,7 @@ class ASTPrinter : public ExprVisitor,
     uint16_t currStmt = 1;
 
     // Expression visitor methods
-    void visit(LiteralExpr* expr) override;
+    void visit(IntLiteralExpr* expr) override;
     void visit(VarExpr* expr) override;
 
     // Statement visitor methods

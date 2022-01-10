@@ -2,9 +2,16 @@
 
 using namespace mxrlang;
 
+llvm::Type* CodeGen::convertTypeToLLVMType(Type* type) {
+    if (type == Type::getIntType())
+        return llvm::Type::getInt64Ty(ctx);
+
+    llvm_unreachable("Unknown type.");
+}
+
 llvm::FunctionType *CodeGen::createFunctionType(FunStmt* stmt) {
-    // FIXME: Currently only possible to return an Int32 value.
-    auto* resultTy = llvm::Type::getInt64Ty(ctx);
+    // FIXME: Currently only possible to return an Int64 value.
+    auto* resultTy = convertTypeToLLVMType(stmt->getType());
     return llvm::FunctionType::get(resultTy, /*isVarArg*/ false);
 }
 
@@ -14,9 +21,9 @@ llvm::Function *CodeGen::createFunction(FunStmt* stmt,
                                   stmt->getName(), module.get());
 }
 
-void CodeGen::visit(LiteralExpr* expr) {
-    auto* lit = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx),
-                                       expr->getValue());
+void CodeGen::visit(IntLiteralExpr* expr) {
+    auto* lit = llvm::ConstantInt::get(
+                convertTypeToLLVMType(expr->getType()), expr->getValue());
     interResult = lit;
 }
 
@@ -24,7 +31,7 @@ void CodeGen::visit(VarExpr* expr) {
     auto* valAlloca = env->find(expr->getName());
     assert(valAlloca && "Undefined alloca");
 
-    interResult = builder.CreateLoad(llvm::Type::getInt64Ty(ctx),
+    interResult = builder.CreateLoad(convertTypeToLLVMType(expr->getType()),
                                      valAlloca, expr->getName());
 }
 
@@ -63,8 +70,8 @@ void CodeGen::visit(VarStmt* stmt) {
     // function...
     llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
                                  currFun->getEntryBlock().begin());
-    auto* alloca = tmpBuilder.CreateAlloca(llvm::Type::getInt64Ty(ctx),
-                                           0, stmt->getName());
+    auto* alloca = tmpBuilder.CreateAlloca(
+                convertTypeToLLVMType(stmt->getType()), 0, stmt->getName());
     // ... and register it in the scope menager.
     env->insert(alloca, stmt->getName());
 

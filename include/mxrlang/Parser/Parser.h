@@ -34,7 +34,10 @@ class Parser {
     Token& previous();
     // Check whether the next token matches the expected and advance the stream
     // if it does. Conversely, throw an error.
-    Token& consume(TokenKind kind, DiagID diagID);
+    Token& consume(DiagID diagID, TokenKind kind);
+
+    template <typename... Ts>
+    Token& consume(DiagID diagID, TokenKind kind, Ts... kinds);
 
     // Discard the (possibly) erroneous tokens until we see one of the
     // synchronization tokens. Called after the parser reports an error.

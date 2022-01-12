@@ -35,11 +35,13 @@ public:
 
 // The following classes describe expression nodes of the AST.
 
+class BoolLiteralExpr;
 class IntLiteralExpr;
 class VarExpr;
 
 class ExprVisitor {
 public:
+    virtual void visit(BoolLiteralExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
 };
@@ -47,7 +49,8 @@ public:
 class Expr {
 public:
     enum class ExprKind {
-        Literal,
+        BoolLiteral,
+        IntLiteral,
         Var
     };
 
@@ -77,12 +80,31 @@ public:
     void setType(Type* type) { this->type = type; }
 };
 
+class BoolLiteralExpr : public Expr {
+    bool value;
+
+public:
+    BoolLiteralExpr(bool value, llvm::SMLoc loc)
+        : Expr(ExprKind::BoolLiteral, loc, Type::getBoolType()),
+          value(value) {}
+
+    bool getValue() const { return value; }
+
+    virtual void accept(ExprVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Expr* E) {
+        return E->getKind() == ExprKind::BoolLiteral;
+    }
+};
+
 class IntLiteralExpr : public Expr {
     llvm::APSInt value;
 
 public:
     IntLiteralExpr(llvm::StringRef valueString, llvm::SMLoc loc)
-        : Expr(ExprKind::Literal, loc, Type::getIntType()) {
+        : Expr(ExprKind::IntLiteral, loc, Type::getIntType()) {
         value = llvm::APInt(/* numBits= */ 64, valueString, /* radix= */ 10);
         value.setIsSigned(true);
     }
@@ -94,7 +116,7 @@ public:
     }
 
     static bool classof(const Expr* E) {
-      return E->getKind() == ExprKind::Literal;
+        return E->getKind() == ExprKind::IntLiteral;
     }
 };
 

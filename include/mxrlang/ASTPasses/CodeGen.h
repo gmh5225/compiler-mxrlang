@@ -41,6 +41,7 @@ class CodeGen : public ExprVisitor,
     llvm::Value* interResult;
 
     // Expression visitor methods
+    void visit(BoolLiteralExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
     void visit(VarExpr* expr) override;
 

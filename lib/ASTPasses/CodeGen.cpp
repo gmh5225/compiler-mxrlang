@@ -5,6 +5,8 @@ using namespace mxrlang;
 llvm::Type* CodeGen::convertTypeToLLVMType(Type* type) {
     if (type == Type::getIntType())
         return llvm::Type::getInt64Ty(ctx);
+    else if (type == Type::getBoolType())
+        return llvm::Type::getInt1Ty(ctx);
 
     llvm_unreachable("Unknown type.");
 }
@@ -19,6 +21,12 @@ llvm::Function *CodeGen::createFunction(FunStmt* stmt,
                                         llvm::FunctionType* type) {
     return llvm::Function::Create(type, llvm::GlobalValue::ExternalLinkage,
                                   stmt->getName(), module.get());
+}
+
+void CodeGen::visit(BoolLiteralExpr* expr) {
+    auto* lit = llvm::ConstantInt::get(
+                convertTypeToLLVMType(expr->getType()), expr->getValue());
+    interResult = lit;
 }
 
 void CodeGen::visit(IntLiteralExpr* expr) {

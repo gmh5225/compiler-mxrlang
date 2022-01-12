@@ -13,6 +13,7 @@ namespace mxrlang {
 class Type {
 public:
     enum class TypeKind {
+        Bool,
         Int,
         None
     };
@@ -21,6 +22,7 @@ private:
     TypeKind type;
 
     // Mxrlang built-in types.
+    static Type boolType;
     static Type intType;
     static Type noneType;
 public:
@@ -28,11 +30,16 @@ public:
 
     // Convert the type token.
     static Type* getTypeFromToken(const Token& token) {
-        if (token.getKind() == TokenKind::kw_INT)
+        if (token.getKind() == TokenKind::kw_BOOL)
+            return &boolType;
+        else if (token.getKind() == TokenKind::kw_INT)
             return &intType;
 
         return nullptr;
     }
+
+    // Get the built-in bool type.
+    static Type* getBoolType() { return &boolType; }
 
     // Get the built-in integer type.
     static Type* getIntType() { return &intType; }
@@ -43,7 +50,9 @@ public:
 
     // Convert the type to string. Useful when printing out the type.
     std::string toString() const {
-        if (type == TypeKind::Int)
+        if (type == TypeKind::Bool)
+            return "bool";
+        else if (type == TypeKind::Int)
             return "int";
         else if (type == TypeKind::None)
             return "none";

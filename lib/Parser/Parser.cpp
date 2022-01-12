@@ -129,7 +129,7 @@ Stmt* Parser::returnStmt() {
 Stmt* Parser::varDeclaration() {
     // Must consume a type.
     const Token& typeTok = consume(DiagID::err_expect_type,
-                                   TokenKind::kw_INT);
+                                   TokenKind::kw_INT, TokenKind::kw_BOOL);
     Type* varType = Type::getTypeFromToken(typeTok);
 
     const Token& name = consume(DiagID::err_expect_var_name,
@@ -149,9 +149,14 @@ Expr* Parser::expression() {
 }
 
 Expr* Parser::primary() {
-    if (match(TokenKind::integer_literal))
+    if (match(TokenKind::kw_TRUE) ||
+        match(TokenKind::kw_FALSE)) {
+        bool value =
+                previous().getKind() == TokenKind::kw_TRUE ? true : false;
+        return new BoolLiteralExpr(value, previous().getLocation());
+    } if (match(TokenKind::integer_literal))
         return new IntLiteralExpr(previous().getLiteralData(),
-                               previous().getLocation());
+                                  previous().getLocation());
     if (match(TokenKind::identifier))
         return new VarExpr(previous().getIdentifier(),
                            previous().getLocation());

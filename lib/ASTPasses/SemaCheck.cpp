@@ -2,6 +2,8 @@
 
 using namespace mxrlang;
 
+void SemaCheck::visit(BoolLiteralExpr* expr) {}
+
 void SemaCheck::visit(IntLiteralExpr* expr) {}
 
 void SemaCheck::visit(VarExpr* expr) {
@@ -42,6 +44,10 @@ void SemaCheck::visit(ReturnStmt* stmt) {
         diag.report(stmt->getLoc(), DiagID::err_ret_val_undefined);
     else
         evaluate(stmt->getRetExpr());
+
+    // FIXME: Currently only INT expected as return type.
+    if (stmt->getRetExpr()->getType() != Type::getIntType())
+        diag.report(stmt->getLoc(), DiagID::err_ret_type_mismatch);
 }
 
 void SemaCheck::visit(VarStmt* stmt) {

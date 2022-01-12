@@ -51,6 +51,11 @@ void ASTPrinter::visit(VarStmt* stmt) {
     result += ")\n";
 }
 
+void ASTPrinter::visit(BoolLiteralExpr* expr) {
+    std::string value = expr->getValue() ? "true" : "false";
+    result += "(" + value + " " + expr->getType()->toString() + ")";
+}
+
 void ASTPrinter::visit(IntLiteralExpr* expr) {
     llvm::SmallString<30> literal;
     expr->getValue().toString(literal);

@@ -19,5 +19,6 @@ DIAG(err_var_undefined, Error, "Undefined variable.")
 DIAG(err_ret_val_undefined, Error, "Must have a return value.")
 DIAG(err_no_return, Error, "Function must have a return statement.")
 DIAG(err_incompatible_types, Error, "Incompatible types.")
+DIAG(err_ret_type_mismatch, Error, "Mismatching return type.")
 
 #undef DIAG

@@ -112,8 +112,8 @@ Stmt* Parser::declaration() {
 Stmt* Parser::statement() {
     if (match(TokenKind::kw_RETURN))
         return returnStmt();
-
-    throw error(peek(), DiagID::err_expect_stmt);
+    else
+        return exprStmt();
 }
 
 Stmt* Parser::returnStmt() {
@@ -144,8 +144,30 @@ Stmt* Parser::varDeclaration() {
                        name.getLocation());
 }
 
+Stmt* Parser::exprStmt() {
+    Expr* expr = expression();
+    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
+
+    return new ExprStmt(expr, previous().getLocation());
+}
+
 Expr* Parser::expression() {
-    return primary();
+    return assignment();
+}
+
+Expr* Parser::assignment() {
+    auto* expr = primary();
+
+    if (match(TokenKind::colonequal)) {
+        auto* source = expression();
+
+        auto* assign = expr->makeAssignExpr(source);
+        if (assign)
+            return assign;
+        throw error(peek(), DiagID::err_invalid_assign_target);
+    }
+
+    return expr;
 }
 
 Expr* Parser::primary() {

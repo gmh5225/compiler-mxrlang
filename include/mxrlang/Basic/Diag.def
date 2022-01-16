@@ -12,6 +12,7 @@ DIAG(err_expect_var_name, Error, "Expected variable name.")
 DIAG(err_expect_semicol, Error, "Expected semicolon.")
 DIAG(err_expect_expr, Error, "Expected expression.")
 DIAG(err_expect_stmt, Error, "Expected statement.")
+DIAG(err_invalid_assign_target, Error, "Invalid assignment target.")
 
 // Semantic check errors
 DIAG(err_var_redefine, Error, "Redefinition of an existing variable.")

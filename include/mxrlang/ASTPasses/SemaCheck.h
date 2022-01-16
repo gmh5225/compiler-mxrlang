@@ -19,11 +19,13 @@ class SemaCheck : public ExprVisitor,
     bool seenReturn = false;
 
     // Expression visitor methods
+    void visit(AssignExpr* expr) override;
     void visit(BoolLiteralExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
     void visit(VarExpr* expr) override;
 
     // Statement visitor methods
+    void visit(ExprStmt* stmt) override;
     void visit(FunStmt* stmt) override;
     void visit(ModuleStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;

@@ -35,12 +35,14 @@ public:
 
 // The following classes describe expression nodes of the AST.
 
+class AssignExpr;
 class BoolLiteralExpr;
 class IntLiteralExpr;
 class VarExpr;
 
 class ExprVisitor {
 public:
+    virtual void visit(AssignExpr* expr) = 0;
     virtual void visit(BoolLiteralExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
@@ -49,6 +51,7 @@ public:
 class Expr {
 public:
     enum class ExprKind {
+        Assign,
         BoolLiteral,
         IntLiteral,
         Var
@@ -71,13 +74,33 @@ public:
     // Check whether this is a valid target of an assignment.
     // Can be overridden by valid targets (eg. Variable_expr) to return an
     // Assign_expr.
-    virtual Expr* makeAssignExpr(Expr* left, Expr* right) { return nullptr; }
+    virtual Expr* makeAssignExpr(Expr* source) { return nullptr; }
 
     ExprKind getKind() const { return kind; }
     llvm::SMLoc getLoc() const { return loc; }
     Type* getType() const { return type; }
 
     void setType(Type* type) { this->type = type; }
+};
+
+class AssignExpr : public Expr {
+    Expr* dest;
+    Expr* source;
+
+public:
+    AssignExpr(Expr* dest, Expr* source, llvm::SMLoc loc)
+        : Expr(ExprKind::Assign, loc), dest(dest), source(source) {}
+
+    Expr* getDest() { return dest; }
+    Expr* getSource() { return source; }
+
+    virtual void accept(ExprVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Expr* E) {
+        return E->getKind() == ExprKind::Assign;
+    }
 };
 
 class BoolLiteralExpr : public Expr {
@@ -136,10 +159,16 @@ public:
     static bool classof(const Expr* E) {
         return E->getKind() == ExprKind::Var;
     }
+
+    // VarExpr is a valid assignment destination.
+    Expr* makeAssignExpr(Expr* source) override {
+        return new AssignExpr(this, source, this->getLoc());
+    }
 };
 
 // The following classes describe statement nodes of the AST.
 
+class ExprStmt;
 class FunStmt;
 class ModuleStmt;
 class ReturnStmt;
@@ -147,6 +176,7 @@ class VarStmt;
 
 class StmtVisitor {
 public:
+    virtual void visit(ExprStmt* stmt) = 0;
     virtual void visit(FunStmt* stmt) = 0;
     virtual void visit(ModuleStmt* stmt) = 0;
     virtual void visit(ReturnStmt* stmt) = 0;
@@ -156,6 +186,7 @@ public:
 class Stmt {
 public:
     enum class StmtKind {
+        Expr,
         Fun,
         Module,
         Return,
@@ -177,6 +208,25 @@ public:
     llvm::SMLoc getLoc() const { return loc; }
 };
 
+// Statement node describing an expression statement.
+class ExprStmt : public Stmt {
+    Expr* expr;
+
+public:
+    ExprStmt(Expr* expr, llvm::SMLoc loc)
+        : Stmt(StmtKind::Expr, loc), expr(expr) {}
+
+    Expr* getExpr() { return expr; }
+
+    virtual void accept(StmtVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Stmt* S) {
+        return S->getKind() == StmtKind::Expr;
+    }
+};
+
 // Statement node describing a function definition.
 // Currently it only holds the top level "main" function.
 class FunStmt : public Stmt,
@@ -196,7 +246,7 @@ public:
         visitor->visit(this);
     }
 
-    static bool classof(const Stmt *S) {
+    static bool classof(const Stmt* S) {
       return S->getKind() == StmtKind::Fun;
     }
 };
@@ -220,7 +270,7 @@ public:
         visitor->visit(this);
     }
 
-    static bool classof(const Stmt *S) {
+    static bool classof(const Stmt* S) {
       return S->getKind() == StmtKind::Module;
     }
 };

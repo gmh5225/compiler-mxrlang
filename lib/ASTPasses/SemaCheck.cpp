@@ -2,6 +2,16 @@
 
 using namespace mxrlang;
 
+void SemaCheck::visit(AssignExpr* expr) {
+    evaluate(expr->getDest());
+    evaluate(expr->getSource());
+
+    if (expr->getDest()->getType() != expr->getSource()->getType())
+        diag.report(expr->getLoc(), DiagID::err_ret_type_mismatch);
+
+    expr->setType(expr->getDest()->getType());
+}
+
 void SemaCheck::visit(BoolLiteralExpr* expr) {}
 
 void SemaCheck::visit(IntLiteralExpr* expr) {}
@@ -22,6 +32,8 @@ void SemaCheck::visit(ModuleStmt* stmt) {
     for (auto st : stmt->getBody())
         evaluate(st);
 }
+
+void SemaCheck::visit(ExprStmt* stmt) { evaluate(stmt->getExpr()); }
 
 void SemaCheck::visit(FunStmt* stmt) {
     SemaCheckScopeMgr scopeMgr(*this);

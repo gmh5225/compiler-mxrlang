@@ -23,6 +23,27 @@ llvm::Function *CodeGen::createFunction(FunStmt* stmt,
                                   stmt->getName(), module.get());
 }
 
+void CodeGen::visit(AssignExpr* expr) {
+    evaluate(expr->getSource());
+    auto* source = interResult;
+
+    llvm::Value* dest = nullptr;
+    if (llvm::isa<VarExpr>(expr->getDest())) {
+        auto* destVar = llvm::dyn_cast<VarExpr>(expr->getDest());
+        dest = env->find(destVar->getName());
+        assert(dest && "Undefined alloca");
+    } else
+        llvm_unreachable("Invalid assign destination.");
+
+    builder.CreateStore(source, dest);
+
+    // Create a load which is the "result" of the assigne expression,
+    // and can be used further in code. If not used, it will be cleaned
+    // up by DCE.
+    interResult = builder.CreateLoad(convertTypeToLLVMType(expr->getType()),
+                                     dest);
+}
+
 void CodeGen::visit(BoolLiteralExpr* expr) {
     auto* lit = llvm::ConstantInt::get(
                 convertTypeToLLVMType(expr->getType()), expr->getValue());
@@ -71,6 +92,10 @@ void CodeGen::visit(ReturnStmt* stmt) {
     evaluate(stmt->getRetExpr());
 
     builder.CreateRet(interResult);
+}
+
+void CodeGen::visit(ExprStmt* stmt) {
+    evaluate(stmt->getExpr());
 }
 
 void CodeGen::visit(VarStmt* stmt) {

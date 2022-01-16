@@ -18,6 +18,10 @@ class Parser {
     // Currently processed token.
     TokenIterator current;
 
+    // Whether we have already seen an assignment in the current
+    // expression statement parse.
+    bool seenAssignment;
+
     Diag& diag;
 
     // If the next token matches the expected, advance the token stream.
@@ -49,11 +53,13 @@ class Parser {
     // Productions.
     FunStmt* funDeclaration();
     Stmt* declaration();
+    Stmt* exprStmt();
     Stmt* returnStmt();
     Stmt* statement();
     Stmt* varDeclaration();
 
     Expr* expression();
+    Expr* assignment();
     Expr* primary();
 
 public:

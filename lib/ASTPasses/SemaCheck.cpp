@@ -19,18 +19,14 @@ void SemaCheck::visit(IntLiteralExpr* expr) {}
 void SemaCheck::visit(VarExpr* expr) {
     // Report an error if we cannot find this declaration.
     auto* varDecl = env->find(expr->getName());
-    if (!varDecl)
+    if (!varDecl) {
         diag.report(expr->getLoc(), DiagID::err_var_undefined);
+        return;
+    }
 
     // Match the type of the VarExpr with that of the actual variable
     // declaration.
     expr->setType(varDecl->getType());
-}
-
-void SemaCheck::visit(ModuleStmt* stmt) {
-    SemaCheckScopeMgr scopeMgr(*this);
-    for (auto st : stmt->getBody())
-        evaluate(st);
 }
 
 void SemaCheck::visit(ExprStmt* stmt) { evaluate(stmt->getExpr()); }
@@ -47,6 +43,33 @@ void SemaCheck::visit(FunStmt* stmt) {
     // Every function must have a return statement.
     if (!seenReturn)
         diag.report(stmt->getLoc(), DiagID::err_no_return);
+}
+
+void SemaCheck::visit(IfStmt* stmt) {
+    evaluate(stmt->getCond());
+    if (!(stmt->getCond()->getType() == Type::getBoolType()))
+        diag.report(stmt->getLoc(), DiagID::err_cond_not_bool);
+
+    // Use RAII to manage the lifetime of scopes.
+    {
+        SemaCheckScopeMgr ScopeMgr(*this);
+        for (auto* thenStmt : stmt->getThenStmts()) {
+            evaluate(thenStmt);
+        }
+    }
+
+    {
+        SemaCheckScopeMgr ScopeMgr(*this);
+        for (auto* elseStmt : stmt->getElseStmts()) {
+            evaluate(elseStmt);
+        }
+    }
+}
+
+void SemaCheck::visit(ModuleStmt* stmt) {
+    SemaCheckScopeMgr scopeMgr(*this);
+    for (auto st : stmt->getBody())
+        evaluate(st);
 }
 
 void SemaCheck::visit(ReturnStmt* stmt) {

@@ -170,6 +170,7 @@ public:
 
 class ExprStmt;
 class FunStmt;
+class IfStmt;
 class ModuleStmt;
 class ReturnStmt;
 class VarStmt;
@@ -178,6 +179,7 @@ class StmtVisitor {
 public:
     virtual void visit(ExprStmt* stmt) = 0;
     virtual void visit(FunStmt* stmt) = 0;
+    virtual void visit(IfStmt* stmt) = 0;
     virtual void visit(ModuleStmt* stmt) = 0;
     virtual void visit(ReturnStmt* stmt) = 0;
     virtual void visit(VarStmt* stmt) = 0;
@@ -188,6 +190,7 @@ public:
     enum class StmtKind {
         Expr,
         Fun,
+        If,
         Module,
         Return,
         Var
@@ -250,6 +253,34 @@ public:
       return S->getKind() == StmtKind::Fun;
     }
 };
+
+
+// Statement node describing an IF statement.
+class IfStmt : public Stmt {
+    Expr* cond;
+    Stmts thenStmts;
+    Stmts elseStmts;
+
+public:
+    IfStmt(Expr* cond, Stmts&& thenStmts,
+           Stmts&& elseStmts, llvm::SMLoc loc)
+        : Stmt(StmtKind::If, loc), cond(cond),
+          thenStmts(std::move(thenStmts)),
+          elseStmts(std::move(elseStmts)) {}
+
+    Expr* getCond() { return cond; }
+    Stmts& getThenStmts() { return thenStmts; }
+    Stmts& getElseStmts() { return elseStmts; }
+
+    virtual void accept(StmtVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Stmt* S) {
+        return S->getKind() == StmtKind::If;
+    }
+};
+
 
 // Statement node describing a module.
 // Currently only one module supported per program.

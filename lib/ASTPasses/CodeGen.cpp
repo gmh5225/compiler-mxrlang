@@ -64,6 +64,10 @@ void CodeGen::visit(VarExpr* expr) {
                                      valAlloca, expr->getName());
 }
 
+void CodeGen::visit(ExprStmt* stmt) {
+    evaluate(stmt->getExpr());
+}
+
 void CodeGen::visit(FunStmt* stmt) {
     auto* funTy = createFunctionType(stmt);
     auto* fun = createFunction(stmt, funTy);
@@ -71,12 +75,56 @@ void CodeGen::visit(FunStmt* stmt) {
 
     // Currently has only one BB.
     llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(ctx, "entry", fun);
-    builder.SetInsertPoint(entryBB);
-    currBB = entryBB;
+    setCurrBB(entryBB);
 
     AllocaScopeMgr scopeMgr(*this);
     for (auto funStmt : stmt->getBody())
         evaluate(funStmt);
+}
+
+void CodeGen::visit(IfStmt* stmt) {
+    // Evalute the condition Value.
+    evaluate(stmt->getCond());
+    auto* cond = interResult;
+
+    // Create the BBs. ElseBB is MergeBB if is no ELSE block.
+    llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(ctx, "then",
+                                                        currFun);
+    llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(ctx, "merge");
+    llvm::BasicBlock* elseBB = stmt->getElseStmts().empty() ?
+        mergeBB : llvm::BasicBlock::Create(ctx, "else");
+
+    // Create a conditional branch.
+    builder.CreateCondBr(cond, thenBB, elseBB);
+
+    // Emit the THEN block.
+    setCurrBB(thenBB);
+    // Use RAII to manage the lifetime of scopes.
+    {
+        AllocaScopeMgr scopeMgr(*this);
+        for (auto thenStmt : stmt->getThenStmts()) {
+            evaluate(thenStmt);
+        }
+    }
+    builder.CreateBr(mergeBB);
+
+    // Emit the ELSE block.
+    if (!stmt->getElseStmts().empty()) {
+        currFun->getBasicBlockList().push_back(elseBB);
+        setCurrBB(elseBB);
+        // Use RAII to manage the lifetime of scopes.
+        {
+            AllocaScopeMgr scopeMgr(*this);
+            for (auto elseStmt : stmt->getElseStmts()) {
+                evaluate(elseStmt);
+            }
+        }
+        builder.CreateBr(mergeBB);
+    }
+
+    // Emit the merge block.
+    currFun->getBasicBlockList().push_back(mergeBB);
+    setCurrBB(mergeBB);
 }
 
 void CodeGen::visit(ModuleStmt* stmt) {
@@ -94,17 +142,13 @@ void CodeGen::visit(ReturnStmt* stmt) {
     builder.CreateRet(interResult);
 }
 
-void CodeGen::visit(ExprStmt* stmt) {
-    evaluate(stmt->getExpr());
-}
-
 void CodeGen::visit(VarStmt* stmt) {
     // Create an alloca for this variable in the entry BB of the current
     // function...
     llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
                                  currFun->getEntryBlock().begin());
     auto* alloca = tmpBuilder.CreateAlloca(
-                convertTypeToLLVMType(stmt->getType()), 0, stmt->getName());
+        convertTypeToLLVMType(stmt->getType()), 0, stmt->getName());
     // ... and register it in the scope menager.
     env->insert(alloca, stmt->getName());
 

@@ -27,6 +27,7 @@ class SemaCheck : public ExprVisitor,
     // Statement visitor methods
     void visit(ExprStmt* stmt) override;
     void visit(FunStmt* stmt) override;
+    void visit(IfStmt* stmt) override;
     void visit(ModuleStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;

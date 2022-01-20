@@ -17,9 +17,13 @@ PUNCTUATOR(colonequal,      ":=")
 PUNCTUATOR(semicolon,       ";")
 
 KEYWORD(BOOL,               KEYALL)
+KEYWORD(ELSE,               KEYALL)
 KEYWORD(FALSE,              KEYALL)
+KEYWORD(FI,                 KEYALL)
+KEYWORD(IF,                 KEYALL)
 KEYWORD(INT,                KEYALL)
 KEYWORD(RETURN,             KEYALL)
+KEYWORD(THEN,               KEYALL)
 KEYWORD(TRUE,               KEYALL)
 KEYWORD(VAR,                KEYALL)
 

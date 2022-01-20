@@ -49,6 +49,7 @@ class CodeGen : public ExprVisitor,
     // Statement visitor methods
     void visit(ExprStmt* stmt) override;
     void visit(FunStmt* stmt) override;
+    void visit(IfStmt* stmt) override;
     void visit(ModuleStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;
@@ -57,6 +58,12 @@ class CodeGen : public ExprVisitor,
     template <typename T>
     void evaluate(const T expr) {
         expr->accept(this);
+    }
+
+    // Set the current BB and builder.
+    void setCurrBB(llvm::BasicBlock* BB) {
+        currBB = BB;
+        builder.SetInsertPoint(BB);
     }
 
     // Convert mxrlang type to LLVM type.

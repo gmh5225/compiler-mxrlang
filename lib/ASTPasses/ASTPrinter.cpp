@@ -30,6 +30,40 @@ void ASTPrinter::visit(VarExpr* expr) {
               expr->getType()->toString() + ")";
 }
 
+void ASTPrinter::visit(ExprStmt* stmt) {
+    result += indent + "Statement " + std::to_string(currStmt++) + "\n"
+              + indent;
+    evaluate(stmt->getExpr());
+    result += "\n";
+}
+
+void ASTPrinter::visit(FunStmt* stmt) {
+    for (auto st : stmt->getBody())
+        evaluate(st);
+}
+
+void ASTPrinter::visit(IfStmt* stmt) {
+    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
+
+    result += indent + "(if ";
+    increaseIndent();
+    evaluate(stmt->getCond());
+    result += ")\n";
+
+    for (auto thenStmt : stmt->getThenStmts())
+        evaluate(thenStmt);
+
+    if (!stmt->getElseStmts().empty()) {
+        decreaseIndent();
+        result += indent + "(else)\n";
+        increaseIndent();
+        for (auto elseStmt : stmt->getElseStmts())
+            evaluate(elseStmt);
+    }
+
+    decreaseIndent();
+}
+
 void ASTPrinter::visit(ModuleStmt* stmt) {
     for (auto st : stmt->getBody()) {
         assert(llvm::isa<FunStmt>(st) && "Currently only function declarations"
@@ -39,21 +73,10 @@ void ASTPrinter::visit(ModuleStmt* stmt) {
     }
 }
 
-void ASTPrinter::visit(FunStmt* stmt) {
-    for (auto st : stmt->getBody())
-        evaluate(st);
-}
-
-void ASTPrinter::visit(ExprStmt* stmt) {
-    result += "Statement " + std::to_string(currStmt++) + "\n";
-    evaluate(stmt->getExpr());
-    result += "\n";
-}
-
 void ASTPrinter::visit(ReturnStmt* stmt) {
-    result += "Statement " + std::to_string(currStmt++) + "\n";
+    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
 
-    result += "(return ";
+    result += indent + "(return ";
 
     // If there is a return value, print it.
     if (stmt->getRetExpr())
@@ -63,10 +86,10 @@ void ASTPrinter::visit(ReturnStmt* stmt) {
 }
 
 void ASTPrinter::visit(VarStmt* stmt) {
-    result += "Statement " + std::to_string(currStmt++) + "\n";
+    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
 
     // Print the operation.
-    result += "(var ";
+    result += indent + "(var ";
 
     // Print the name.
     result += stmt->getName().str() + " ";

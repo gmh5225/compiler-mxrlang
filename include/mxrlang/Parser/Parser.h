@@ -54,6 +54,7 @@ class Parser {
     FunStmt* funDeclaration();
     Stmt* declaration();
     Stmt* exprStmt();
+    Stmt* ifStmt();
     Stmt* returnStmt();
     Stmt* statement();
     Stmt* varDeclaration();

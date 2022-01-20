@@ -110,10 +110,35 @@ Stmt* Parser::declaration() {
 }
 
 Stmt* Parser::statement() {
-    if (match(TokenKind::kw_RETURN))
+    if (match(TokenKind::kw_IF))
+        return ifStmt();
+    else if (match(TokenKind::kw_RETURN))
         return returnStmt();
     else
         return exprStmt();
+}
+
+Stmt* Parser::ifStmt() {
+    // Parse the IF condition.
+    Stmts thenStmts;
+    Stmts elseStmts;
+    Expr* cond = expression();
+
+    consume(DiagID::err_expect_then, TokenKind::kw_THEN);
+
+    // Parse the statements in the THEN block.
+    while (!(match(TokenKind::kw_ELSE) || match(TokenKind::kw_FI)))
+        thenStmts.push_back(declaration());
+
+    // Parse the statements in the ELSE block.
+    if (previous().getKind() == TokenKind::kw_ELSE) {
+        while (!match(TokenKind::kw_FI)) {
+            elseStmts.push_back(declaration());
+        }
+    }
+
+    return new IfStmt(cond, std::move(thenStmts), std::move(elseStmts),
+                      previous().getLocation());
 }
 
 Stmt* Parser::returnStmt() {

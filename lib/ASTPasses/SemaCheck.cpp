@@ -14,6 +14,12 @@ void SemaCheck::visit(AssignExpr* expr) {
 
 void SemaCheck::visit(BoolLiteralExpr* expr) {}
 
+void SemaCheck::visit(GroupingExpr* expr) {
+    evaluate(expr->getExpr());
+
+    expr->setType(expr->getExpr()->getType());
+}
+
 void SemaCheck::visit(IntLiteralExpr* expr) {}
 
 void SemaCheck::visit(VarExpr* expr) {

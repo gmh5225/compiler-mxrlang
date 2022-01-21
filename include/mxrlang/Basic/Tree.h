@@ -37,6 +37,7 @@ public:
 
 class AssignExpr;
 class BoolLiteralExpr;
+class GroupingExpr;
 class IntLiteralExpr;
 class VarExpr;
 
@@ -44,6 +45,7 @@ class ExprVisitor {
 public:
     virtual void visit(AssignExpr* expr) = 0;
     virtual void visit(BoolLiteralExpr* expr) = 0;
+    virtual void visit(GroupingExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
 };
@@ -53,6 +55,7 @@ public:
     enum class ExprKind {
         Assign,
         BoolLiteral,
+        Grouping,
         IntLiteral,
         Var
     };
@@ -119,6 +122,24 @@ public:
 
     static bool classof(const Expr* E) {
         return E->getKind() == ExprKind::BoolLiteral;
+    }
+};
+
+class GroupingExpr : public Expr {
+    Expr* expr;
+
+public:
+    GroupingExpr(Expr* expr, llvm::SMLoc loc)
+        : Expr(ExprKind::Grouping, loc), expr(expr) {}
+
+    Expr* getExpr() { return expr; }
+
+    virtual void accept(ExprVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Expr* E) {
+        return E->getKind() == ExprKind::Grouping;
     }
 };
 

@@ -14,6 +14,8 @@ TOK(identifier)          // abcde123
 TOK(integer_literal)     // 123
 
 PUNCTUATOR(colonequal,      ":=")
+PUNCTUATOR(closedpar,       ")")
+PUNCTUATOR(openpar,         "(")
 PUNCTUATOR(semicolon,       ";")
 
 KEYWORD(BOOL,               KEYALL)

@@ -81,6 +81,8 @@ void Lexer::next(Token& result) {
         break;
 
        CASE(';', TokenKind::semicolon)
+       CASE('(', TokenKind::openpar)
+       CASE(')', TokenKind::closedpar)
 #undef CASE
        case ':':
            if (*(currPtr + 1) == '=')

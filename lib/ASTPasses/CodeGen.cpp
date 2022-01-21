@@ -63,6 +63,10 @@ void CodeGen::visit(BoolLiteralExpr* expr) {
     interResult = lit;
 }
 
+void CodeGen::visit(GroupingExpr* expr) {
+    evaluate(expr->getExpr());
+}
+
 void CodeGen::visit(IntLiteralExpr* expr) {
     auto* lit = llvm::ConstantInt::get(
                 convertTypeToLLVMType(expr->getType()), expr->getValue());

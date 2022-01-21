@@ -95,7 +95,7 @@ Parser::ParserError Parser::error(const Token& tok, DiagID id) {
 FunStmt* Parser::funDeclaration() {
     Stmts stmts;
     Token& funToken = peek();
-    // For now, just parse the whole file, because the whole file is a
+    // For now, just parse the whole file, beause the whole file is a
     // singular function.
     while (!isAtEnd())
         stmts.emplace_back(declaration());
@@ -216,10 +216,14 @@ Expr* Parser::primary() {
         bool value =
                 previous().getKind() == TokenKind::kw_TRUE ? true : false;
         return new BoolLiteralExpr(value, previous().getLocation());
-    } if (match(TokenKind::integer_literal))
+    } else if (match(TokenKind::openpar)) {
+        auto* expr = expression();
+        consume(DiagID::err_expect_closedpar, TokenKind::closedpar);
+        return new GroupingExpr(expr, previous().getLocation());
+    } else if (match(TokenKind::integer_literal))
         return new IntLiteralExpr(previous().getLiteralData(),
                                   previous().getLocation());
-    if (match(TokenKind::identifier))
+    else if (match(TokenKind::identifier))
         return new VarExpr(previous().getIdentifier(),
                            previous().getLocation());
 

@@ -17,6 +17,12 @@ void ASTPrinter::visit(BoolLiteralExpr* expr) {
     result += "(" + value + " " + expr->getType()->toString() + ")";
 }
 
+void ASTPrinter::visit(GroupingExpr* expr) {
+    result += "(group " + expr->getType()->toString() + " ";
+    evaluate(expr->getExpr());
+    result += ")";
+}
+
 void ASTPrinter::visit(IntLiteralExpr* expr) {
     llvm::SmallString<30> literal;
     expr->getValue().toString(literal);

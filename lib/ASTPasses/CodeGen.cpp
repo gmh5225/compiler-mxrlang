@@ -2,6 +2,19 @@
 
 using namespace mxrlang;
 
+void CodeGen::createPrintFunction() {
+    llvm::ArrayRef<llvm::Type*> argTys = {llvm::Type::getInt8PtrTy(ctx)};
+    auto* funTy = llvm::FunctionType::get(llvm::Type::getInt32Ty(ctx),
+                                          argTys, true);
+
+    printFun = llvm::Function::Create(funTy,
+                                      llvm::GlobalValue::ExternalLinkage,
+                                      "printf", module.get());
+
+    formatStr = builder.CreateGlobalStringPtr(llvm::StringRef("%lld\n"),
+                                              "formatstr", 0, module.get());
+}
+
 llvm::Type* CodeGen::convertTypeToLLVMType(Type* type) {
     if (type == Type::getIntType())
         return llvm::Type::getInt64Ty(ctx);
@@ -129,11 +142,19 @@ void CodeGen::visit(IfStmt* stmt) {
 
 void CodeGen::visit(ModuleStmt* stmt) {
     AllocaScopeMgr scopeMgr(*this);
+    createPrintFunction();
 
     // FIXME: Currently only "main" function exists, which is implicitly
     // declared.
     assert(stmt->getBody().size() == 1);
     evaluate(stmt->getBody().at(0));
+}
+
+void CodeGen::visit(PrintStmt* stmt) {
+    auto* printExpr = stmt->getPrintExpr();
+    evaluate(printExpr);
+
+    builder.CreateCall(printFun, {formatStr, interResult}, "print");
 }
 
 void CodeGen::visit(ReturnStmt* stmt) {

@@ -172,6 +172,7 @@ class ExprStmt;
 class FunStmt;
 class IfStmt;
 class ModuleStmt;
+class PrintStmt;
 class ReturnStmt;
 class VarStmt;
 
@@ -181,6 +182,7 @@ public:
     virtual void visit(FunStmt* stmt) = 0;
     virtual void visit(IfStmt* stmt) = 0;
     virtual void visit(ModuleStmt* stmt) = 0;
+    virtual void visit(PrintStmt* stmt) = 0;
     virtual void visit(ReturnStmt* stmt) = 0;
     virtual void visit(VarStmt* stmt) = 0;
 };
@@ -192,6 +194,7 @@ public:
         Fun,
         If,
         Module,
+        Print,
         Return,
         Var
     };
@@ -306,6 +309,25 @@ public:
     }
 };
 
+// Statement node descibing a built-in PRINT function call.
+class PrintStmt : public Stmt {
+    Expr* printExpr;
+
+public:
+    PrintStmt(Expr* printExpr, llvm::SMLoc loc)
+        : Stmt(StmtKind::Print, loc) , printExpr(printExpr) {}
+
+    Expr* getPrintExpr() { return printExpr; }
+
+    virtual void accept(StmtVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Stmt* S) {
+        return S->getKind() == StmtKind::Print;
+    }
+};
+
 // Statement node describing a return statement.
 class ReturnStmt : public Stmt {
     Expr* retExpr;
@@ -316,7 +338,7 @@ public:
 
     Expr* getRetExpr() { return retExpr; }
 
-    virtual void accept(StmtVisitor *visitor) override {
+    virtual void accept(StmtVisitor* visitor) override {
         visitor->visit(this);
     }
 

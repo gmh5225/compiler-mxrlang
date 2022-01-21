@@ -20,6 +20,10 @@ class CodeGen : public ExprVisitor,
     // Environment holding local variable allocas.
     Environment<llvm::AllocaInst>* env = nullptr;
 
+    // Built-in print function declaration and format string.
+    llvm::Function* printFun;
+    llvm::Constant* formatStr;
+
     llvm::LLVMContext ctx;
     llvm::TargetMachine* TM;
     std::unique_ptr<llvm::Module> module;
@@ -51,6 +55,7 @@ class CodeGen : public ExprVisitor,
     void visit(FunStmt* stmt) override;
     void visit(IfStmt* stmt) override;
     void visit(ModuleStmt* stmt) override;
+    void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;
 
@@ -71,6 +76,9 @@ class CodeGen : public ExprVisitor,
 
     llvm::FunctionType* createFunctionType(FunStmt* stmt);
     llvm::Function* createFunction(FunStmt* stmt, llvm::FunctionType* type);
+
+    // Declare the built-in print function.
+    void createPrintFunction();
 
 public:
     CodeGen(llvm::TargetMachine* TM, std::string fileName, Diag& diag)

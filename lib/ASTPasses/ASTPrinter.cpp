@@ -73,6 +73,15 @@ void ASTPrinter::visit(ModuleStmt* stmt) {
     }
 }
 
+void ASTPrinter::visit(PrintStmt* stmt) {
+    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
+    result += indent + "(print ";
+
+    evaluate(stmt->getPrintExpr());
+
+    result += ")\n";
+}
+
 void ASTPrinter::visit(ReturnStmt* stmt) {
     result += indent + "Statement " + std::to_string(currStmt++) + "\n";
 

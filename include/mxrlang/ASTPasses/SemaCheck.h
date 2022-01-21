@@ -29,6 +29,7 @@ class SemaCheck : public ExprVisitor,
     void visit(FunStmt* stmt) override;
     void visit(IfStmt* stmt) override;
     void visit(ModuleStmt* stmt) override;
+    void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;
 

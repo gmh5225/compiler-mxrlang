@@ -55,6 +55,7 @@ class Parser {
     Stmt* declaration();
     Stmt* exprStmt();
     Stmt* ifStmt();
+    Stmt* printStmt();
     Stmt* returnStmt();
     Stmt* statement();
     Stmt* varDeclaration();

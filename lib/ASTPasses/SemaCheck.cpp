@@ -72,6 +72,10 @@ void SemaCheck::visit(ModuleStmt* stmt) {
         evaluate(st);
 }
 
+void SemaCheck::visit(PrintStmt* stmt) {
+    evaluate(stmt->getPrintExpr());
+}
+
 void SemaCheck::visit(ReturnStmt* stmt) {
     seenReturn = true;
 

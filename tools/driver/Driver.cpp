@@ -69,7 +69,7 @@ llvm::TargetMachine* createTargetMachine(const char* argv0) {
 
     llvm::TargetMachine *TM = target->createTargetMachine(
         triple.getTriple(), cpuStr, featureStr, targetOptions,
-        llvm::Optional<llvm::Reloc::Model>(llvm::codegen::getRelocModel()));
+        llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::Model::PIC_));
     return TM;
 }
 

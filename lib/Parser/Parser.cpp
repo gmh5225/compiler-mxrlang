@@ -72,6 +72,12 @@ void Parser::synchronize() {
             return;
 
         switch (peek().getKind()) {
+        case TokenKind::kw_ELSE:
+        case TokenKind::kw_IF:
+        case TokenKind::kw_PRINT:
+        case TokenKind::kw_THEN:
+        case TokenKind::kw_VAR:
+            return;
         default:
             ;
         }
@@ -112,6 +118,8 @@ Stmt* Parser::declaration() {
 Stmt* Parser::statement() {
     if (match(TokenKind::kw_IF))
         return ifStmt();
+    else if (match(TokenKind::kw_PRINT))
+        return printStmt();
     else if (match(TokenKind::kw_RETURN))
         return returnStmt();
     else
@@ -139,6 +147,13 @@ Stmt* Parser::ifStmt() {
 
     return new IfStmt(cond, std::move(thenStmts), std::move(elseStmts),
                       previous().getLocation());
+}
+
+Stmt* Parser::printStmt() {
+    Expr* printExpr = expression();
+
+    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
+    return new PrintStmt(printExpr, previous().getLocation());
 }
 
 Stmt* Parser::returnStmt() {

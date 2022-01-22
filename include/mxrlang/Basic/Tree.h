@@ -13,6 +13,15 @@
 // This file contains definitions of abstract syntax tree expression
 // and statement classes.
 
+// Generates boilerplate code for each class.
+#define BPLATE_METHODS(PARENT, KIND)                            \
+    virtual void accept(PARENT##Visitor* visitor) override {    \
+        visitor->visit(this);                                   \
+    }                                                           \
+    static bool classof(const PARENT* node) {                   \
+        return node->getKind() == PARENT##Kind::KIND;           \
+    }                                                           \
+
 namespace mxrlang {
 
 class Stmt;
@@ -100,13 +109,7 @@ public:
     Expr* getDest() { return dest; }
     Expr* getSource() { return source; }
 
-    virtual void accept(ExprVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Expr* E) {
-        return E->getKind() == ExprKind::Assign;
-    }
+    BPLATE_METHODS(Expr, Assign)
 };
 
 class BinaryArithExpr : public Expr {
@@ -133,13 +136,7 @@ public:
     Expr* getLeft() { return left; }
     Expr* getRight() { return right; }
 
-    virtual void accept(ExprVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Expr* E) {
-        return E->getKind() == ExprKind::BinaryArith;
-    }
+    BPLATE_METHODS(Expr, BinaryArith)
 };
 
 class BoolLiteralExpr : public Expr {
@@ -152,13 +149,7 @@ public:
 
     bool getValue() const { return value; }
 
-    virtual void accept(ExprVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Expr* E) {
-        return E->getKind() == ExprKind::BoolLiteral;
-    }
+    BPLATE_METHODS(Expr, BoolLiteral)
 };
 
 class GroupingExpr : public Expr {
@@ -170,13 +161,7 @@ public:
 
     Expr* getExpr() { return expr; }
 
-    virtual void accept(ExprVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Expr* E) {
-        return E->getKind() == ExprKind::Grouping;
-    }
+    BPLATE_METHODS(Expr, Grouping)
 };
 
 class IntLiteralExpr : public Expr {
@@ -191,13 +176,7 @@ public:
 
     llvm::APSInt& getValue() { return value; }
 
-    virtual void accept(ExprVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Expr* E) {
-        return E->getKind() == ExprKind::IntLiteral;
-    }
+    BPLATE_METHODS(Expr, IntLiteral)
 };
 
 class VarExpr : public Expr {
@@ -209,13 +188,7 @@ public:
 
     llvm::StringRef getName() { return name; }
 
-    virtual void accept(ExprVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Expr* E) {
-        return E->getKind() == ExprKind::Var;
-    }
+    BPLATE_METHODS(Expr, Var)
 
     // VarExpr is a valid assignment destination.
     Expr* makeAssignExpr(Expr* source) override {
@@ -281,13 +254,7 @@ public:
 
     Expr* getExpr() { return expr; }
 
-    virtual void accept(StmtVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Stmt* S) {
-        return S->getKind() == StmtKind::Expr;
-    }
+    BPLATE_METHODS(Stmt, Expr)
 };
 
 // Statement node describing a function definition.
@@ -305,13 +272,7 @@ public:
     llvm::StringRef getName() { return name; }
     Stmts& getBody() { return body; }
 
-    virtual void accept(StmtVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Stmt* S) {
-      return S->getKind() == StmtKind::Fun;
-    }
+    BPLATE_METHODS(Stmt, Fun)
 };
 
 
@@ -332,13 +293,7 @@ public:
     Stmts& getThenStmts() { return thenStmts; }
     Stmts& getElseStmts() { return elseStmts; }
 
-    virtual void accept(StmtVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Stmt* S) {
-        return S->getKind() == StmtKind::If;
-    }
+    BPLATE_METHODS(Stmt, If)
 };
 
 
@@ -357,13 +312,7 @@ public:
     llvm::StringRef getName() { return name; }
     Stmts& getBody() { return body; }
 
-    virtual void accept(StmtVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Stmt* S) {
-      return S->getKind() == StmtKind::Module;
-    }
+    BPLATE_METHODS(Stmt, Module)
 };
 
 // Statement node descibing a built-in PRINT function call.
@@ -376,13 +325,7 @@ public:
 
     Expr* getPrintExpr() { return printExpr; }
 
-    virtual void accept(StmtVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Stmt* S) {
-        return S->getKind() == StmtKind::Print;
-    }
+    BPLATE_METHODS(Stmt, Print)
 };
 
 // Statement node describing a return statement.
@@ -395,13 +338,7 @@ public:
 
     Expr* getRetExpr() { return retExpr; }
 
-    virtual void accept(StmtVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Stmt* S) {
-        return S->getKind() == StmtKind::Return;
-    }
+    BPLATE_METHODS(Stmt, Return)
 };
 
 // Statement node decribing a variable declaration/definition.
@@ -419,13 +356,7 @@ public:
     llvm::StringRef getName() { return name; }
     Expr* getInitializer() { return initializer; }
 
-    virtual void accept(StmtVisitor* visitor) override {
-        visitor->visit(this);
-    }
-
-    static bool classof(const Stmt *S) {
-      return S->getKind() == StmtKind::Var;
-    }
+    BPLATE_METHODS(Stmt, Var)
 };
 
 } // namespace mxrlang

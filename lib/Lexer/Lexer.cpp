@@ -80,9 +80,13 @@ void Lexer::next(Token& result) {
         formToken(result, currPtr + 1, tok);                \
         break;
 
-       CASE(';', TokenKind::semicolon)
-       CASE('(', TokenKind::openpar)
        CASE(')', TokenKind::closedpar)
+       CASE('-', TokenKind::minus)
+       CASE('(', TokenKind::openpar)
+       CASE('+', TokenKind::plus)
+       CASE(';', TokenKind::semicolon)
+       CASE('/', TokenKind::slash)
+       CASE('*', TokenKind::star)
 #undef CASE
        case ':':
            if (*(currPtr + 1) == '=')

@@ -62,6 +62,8 @@ class Parser {
 
     Expr* expression();
     Expr* assignment();
+    Expr* addSub();
+    Expr* mulDiv();
     Expr* primary();
 
 public:

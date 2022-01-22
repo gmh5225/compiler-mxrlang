@@ -24,5 +24,6 @@ DIAG(err_no_return, Error, "Function must have a return statement.")
 DIAG(err_incompatible_types, Error, "Incompatible types.")
 DIAG(err_ret_type_mismatch, Error, "Mismatching return type.")
 DIAG(err_cond_not_bool, Error, "Condition must be of boolean type.")
+DIAG(err_arith_type, Error, "Arithmetic operators expect operands of INT type.")
 
 #undef DIAG

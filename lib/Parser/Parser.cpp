@@ -196,7 +196,7 @@ Expr* Parser::expression() {
 }
 
 Expr* Parser::assignment() {
-    auto* expr = primary();
+    auto* expr = addSub();
 
     if (match(TokenKind::colonequal)) {
         auto* source = expression();
@@ -205,6 +205,40 @@ Expr* Parser::assignment() {
         if (assign)
             return assign;
         throw error(peek(), DiagID::err_invalid_assign_target);
+    }
+
+    return expr;
+}
+
+Expr* Parser::addSub() {
+    auto* expr = mulDiv();
+
+    while (match(TokenKind::plus) || match(TokenKind::minus)) {
+        BinaryArithExpr::BinaryArithExprKind kind =
+            previous().getKind() == TokenKind::plus ?
+                BinaryArithExpr::BinaryArithExprKind::Add :
+                BinaryArithExpr::BinaryArithExprKind::Sub;
+
+        auto* right = mulDiv();
+        expr = new BinaryArithExpr(kind, expr, right,
+                                   previous().getLocation());
+    }
+
+    return expr;
+}
+
+Expr* Parser::mulDiv() {
+    auto* expr = primary();
+
+    while (match(TokenKind::star) || match(TokenKind::slash)) {
+        BinaryArithExpr::BinaryArithExprKind kind =
+            previous().getKind() == TokenKind::star ?
+                BinaryArithExpr::BinaryArithExprKind::Mul :
+                BinaryArithExpr::BinaryArithExprKind::Div;
+
+        auto* right = primary();
+        expr = new BinaryArithExpr(kind, expr, right,
+                                   previous().getLocation());
     }
 
     return expr;

@@ -15,8 +15,12 @@ TOK(integer_literal)     // 123
 
 PUNCTUATOR(colonequal,      ":=")
 PUNCTUATOR(closedpar,       ")")
+PUNCTUATOR(minus,           "-")
 PUNCTUATOR(openpar,         "(")
+PUNCTUATOR(plus,            "+")
 PUNCTUATOR(semicolon,       ";")
+PUNCTUATOR(slash,           "/")
+PUNCTUATOR(star,            "*")
 
 KEYWORD(BOOL,               KEYALL)
 KEYWORD(ELSE,               KEYALL)

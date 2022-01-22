@@ -12,6 +12,20 @@ void SemaCheck::visit(AssignExpr* expr) {
     expr->setType(expr->getDest()->getType());
 }
 
+void SemaCheck::visit(BinaryArithExpr* expr) {
+    evaluate(expr->getLeft());
+    evaluate(expr->getRight());
+
+    auto* leftTy = expr->getLeft()->getType();
+    auto* rightTy = expr->getRight()->getType();
+    if ((leftTy != Type::getIntType()) ||
+        (rightTy != Type::getIntType()) ||
+        (leftTy != rightTy))
+        diag.report(expr->getLoc(), DiagID::err_arith_type);
+
+    expr->setType(leftTy);
+}
+
 void SemaCheck::visit(BoolLiteralExpr* expr) {}
 
 void SemaCheck::visit(GroupingExpr* expr) {

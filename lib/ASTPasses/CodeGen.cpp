@@ -57,6 +57,33 @@ void CodeGen::visit(AssignExpr* expr) {
                                      dest);
 }
 
+void CodeGen::visit(BinaryArithExpr *expr) {
+    llvm::Value* left = nullptr;
+    llvm::Value* right = nullptr;
+
+    evaluate(expr->getLeft());
+    left = interResult;
+    evaluate(expr->getRight());
+    right = interResult;
+
+    switch (expr->getBinaryKind()) {
+    case BinaryArithExpr::BinaryArithExprKind::Add:
+        interResult = builder.CreateAdd(left, right, "add");
+        break;
+    case BinaryArithExpr::BinaryArithExprKind::Div:
+        interResult = builder.CreateSDiv(left, right, "sdiv");
+        break;
+    case BinaryArithExpr::BinaryArithExprKind::Mul:
+        interResult = builder.CreateMul(left, right, "mul");
+        break;
+    case BinaryArithExpr::BinaryArithExprKind::Sub:
+        interResult = builder.CreateSub(left, right, "sub");
+        break;
+    default:
+        llvm_unreachable("Invalid binary arithmetic operator.");
+    }
+}
+
 void CodeGen::visit(BoolLiteralExpr* expr) {
     auto* lit = llvm::ConstantInt::get(
                 convertTypeToLLVMType(expr->getType()), expr->getValue());

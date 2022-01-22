@@ -12,6 +12,32 @@ void ASTPrinter::visit(AssignExpr* expr) {
     result += ")";
 }
 
+void ASTPrinter::visit(BinaryArithExpr* expr) {
+    std::string op;
+    switch (expr->getBinaryKind()) {
+    case BinaryArithExpr::BinaryArithExprKind::Add:
+        op = "+";
+        break;
+    case BinaryArithExpr::BinaryArithExprKind::Div:
+        op = "/";
+        break;
+    case BinaryArithExpr::BinaryArithExprKind::Mul:
+        op = "*";
+        break;
+    case BinaryArithExpr::BinaryArithExprKind::Sub:
+        op = "-";
+        break;
+    default:
+        llvm_unreachable("Invalid binary arithmetic operator.");
+    }
+
+    result += "(" + op + " " + expr->getType()->toString() + " ";
+    evaluate(expr->getLeft());
+    result += " ";
+    evaluate(expr->getRight());
+    result += ")";
+}
+
 void ASTPrinter::visit(BoolLiteralExpr* expr) {
     std::string value = expr->getValue() ? "true" : "false";
     result += "(" + value + " " + expr->getType()->toString() + ")";

@@ -36,6 +36,7 @@ public:
 // The following classes describe expression nodes of the AST.
 
 class AssignExpr;
+class BinaryArithExpr;
 class BoolLiteralExpr;
 class GroupingExpr;
 class IntLiteralExpr;
@@ -44,6 +45,7 @@ class VarExpr;
 class ExprVisitor {
 public:
     virtual void visit(AssignExpr* expr) = 0;
+    virtual void visit(BinaryArithExpr* expr) = 0;
     virtual void visit(BoolLiteralExpr* expr) = 0;
     virtual void visit(GroupingExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
@@ -54,6 +56,7 @@ class Expr {
 public:
     enum class ExprKind {
         Assign,
+        BinaryArith,
         BoolLiteral,
         Grouping,
         IntLiteral,
@@ -103,6 +106,39 @@ public:
 
     static bool classof(const Expr* E) {
         return E->getKind() == ExprKind::Assign;
+    }
+};
+
+class BinaryArithExpr : public Expr {
+public:
+    enum class BinaryArithExprKind {
+        Add,
+        Div,
+        Mul,
+        Sub
+    };
+
+private:
+    BinaryArithExprKind binKind;
+    Expr* left;
+    Expr* right;
+
+public:
+    BinaryArithExpr(BinaryArithExprKind binKind, Expr* left, Expr* right,
+               llvm::SMLoc loc)
+        : Expr(ExprKind::BinaryArith, loc), binKind(binKind), left(left),
+          right(right) {}
+
+    BinaryArithExprKind getBinaryKind() { return binKind; }
+    Expr* getLeft() { return left; }
+    Expr* getRight() { return right; }
+
+    virtual void accept(ExprVisitor* visitor) override {
+        visitor->visit(this);
+    }
+
+    static bool classof(const Expr* E) {
+        return E->getKind() == ExprKind::BinaryArith;
     }
 };
 

@@ -25,5 +25,6 @@ DIAG(err_incompatible_types, Error, "Incompatible types.")
 DIAG(err_ret_type_mismatch, Error, "Mismatching return type.")
 DIAG(err_cond_not_bool, Error, "Condition must be of boolean type.")
 DIAG(err_arith_type, Error, "Arithmetic operators expect operands of INT type.")
+DIAG(err_logic_type, Error, "Logical operators expect operands of BOOL type.")
 
 #undef DIAG

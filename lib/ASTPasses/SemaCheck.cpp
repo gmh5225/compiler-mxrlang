@@ -26,6 +26,37 @@ void SemaCheck::visit(BinaryArithExpr* expr) {
     expr->setType(leftTy);
 }
 
+void SemaCheck::visit(BinaryLogicalExpr* expr) {
+    evaluate(expr->getLeft());
+    evaluate(expr->getRight());
+
+    auto* leftTy = expr->getLeft()->getType();
+    auto* rightTy = expr->getRight()->getType();
+    auto kind = expr->getBinaryKind();
+    if ((kind == BinaryLogicalExpr::BinaryLogicalExprKind::And) ||
+        (kind == BinaryLogicalExpr::BinaryLogicalExprKind::Or)) {
+        if ((leftTy != Type::getBoolType()) ||
+            (rightTy != Type::getBoolType()) ||
+            (leftTy != rightTy))
+            diag.report(expr->getLoc(), DiagID::err_logic_type);
+
+        expr->setType(leftTy);
+    } else if ((kind == BinaryLogicalExpr::BinaryLogicalExprKind::Eq) ||
+               (kind == BinaryLogicalExpr::BinaryLogicalExprKind::NotEq)) {
+        if (leftTy != rightTy)
+            diag.report(expr->getLoc(), DiagID::err_incompatible_types);
+
+        expr->setType(Type::getBoolType());
+    } else {
+        if ((leftTy != Type::getIntType()) ||
+            (rightTy != Type::getIntType()) ||
+            (leftTy != rightTy))
+            diag.report(expr->getLoc(), DiagID::err_arith_type);
+
+        expr->setType(Type::getBoolType());
+    }
+}
+
 void SemaCheck::visit(BoolLiteralExpr* expr) {}
 
 void SemaCheck::visit(GroupingExpr* expr) {

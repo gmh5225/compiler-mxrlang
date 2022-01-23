@@ -64,6 +64,10 @@ class Parser {
     Expr* assignment();
     Expr* addSub();
     Expr* mulDiv();
+    Expr* logicalOr();
+    Expr* logicalAnd();
+    Expr* equality();
+    Expr* comparison();
     Expr* primary();
 
 public:

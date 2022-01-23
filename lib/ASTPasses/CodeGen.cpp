@@ -84,6 +84,43 @@ void CodeGen::visit(BinaryArithExpr *expr) {
     }
 }
 
+void CodeGen::visit(BinaryLogicalExpr* expr) {
+    llvm::Value* left = nullptr;
+    llvm::Value* right = nullptr;
+
+    evaluate(expr->getLeft());
+    left = interResult;
+    evaluate(expr->getRight());
+    right = interResult;
+
+    switch (expr->getBinaryKind()) {
+    case BinaryLogicalExpr::BinaryLogicalExprKind::And:
+        interResult = builder.CreateAnd(left, right, "and");
+        break;
+    case BinaryLogicalExpr::BinaryLogicalExprKind::Eq:
+        interResult = builder.CreateICmpEQ(left, right, "eq");
+        break;
+    case BinaryLogicalExpr::BinaryLogicalExprKind::Greater:
+        interResult = builder.CreateICmpSGT(left, right, "greater");
+        break;
+    case BinaryLogicalExpr::BinaryLogicalExprKind::GreaterEq:
+        interResult = builder.CreateICmpSGE(left, right, "greatereq");
+        break;
+    case BinaryLogicalExpr::BinaryLogicalExprKind::Less:
+        interResult = builder.CreateICmpSLT(left, right, "less");
+        break;
+    case BinaryLogicalExpr::BinaryLogicalExprKind::LessEq:
+        interResult = builder.CreateICmpSLE(left, right, "lesseq");
+        break;
+    case BinaryLogicalExpr::BinaryLogicalExprKind::NotEq:
+        interResult = builder.CreateICmpNE(left, right, "noteq");
+        break;
+    case BinaryLogicalExpr::BinaryLogicalExprKind::Or:
+        interResult = builder.CreateOr(left, right, "or");
+        break;
+    }
+}
+
 void CodeGen::visit(BoolLiteralExpr* expr) {
     auto* lit = llvm::ConstantInt::get(
                 convertTypeToLLVMType(expr->getType()), expr->getValue());

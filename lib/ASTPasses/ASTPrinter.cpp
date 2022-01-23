@@ -4,6 +4,15 @@
 
 using namespace mxrlang;
 
+template <typename BinExpr>
+void ASTPrinter::printBinary(std::string& op, BinExpr binExpr) {
+    result += "(" + op + " " + binExpr->getType()->toString() + " ";
+    evaluate(binExpr->getLeft());
+    result += " ";
+    evaluate(binExpr->getRight());
+    result += ")";
+}
+
 void ASTPrinter::visit(AssignExpr* expr) {
     result += "(= ";
     evaluate(expr->getDest());
@@ -13,29 +22,11 @@ void ASTPrinter::visit(AssignExpr* expr) {
 }
 
 void ASTPrinter::visit(BinaryArithExpr* expr) {
-    std::string op;
-    switch (expr->getBinaryKind()) {
-    case BinaryArithExpr::BinaryArithExprKind::Add:
-        op = "+";
-        break;
-    case BinaryArithExpr::BinaryArithExprKind::Div:
-        op = "/";
-        break;
-    case BinaryArithExpr::BinaryArithExprKind::Mul:
-        op = "*";
-        break;
-    case BinaryArithExpr::BinaryArithExprKind::Sub:
-        op = "-";
-        break;
-    default:
-        llvm_unreachable("Invalid binary arithmetic operator.");
-    }
+    printBinary(expr->getOpString(), expr);
+}
 
-    result += "(" + op + " " + expr->getType()->toString() + " ";
-    evaluate(expr->getLeft());
-    result += " ";
-    evaluate(expr->getRight());
-    result += ")";
+void ASTPrinter::visit(BinaryLogicalExpr* expr) {
+    printBinary(expr->getOpString(), expr);
 }
 
 void ASTPrinter::visit(BoolLiteralExpr* expr) {

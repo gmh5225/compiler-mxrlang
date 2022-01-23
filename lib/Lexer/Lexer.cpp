@@ -81,6 +81,7 @@ void Lexer::next(Token& result) {
         break;
 
        CASE(')', TokenKind::closedpar)
+       CASE('=', TokenKind::equal)
        CASE('-', TokenKind::minus)
        CASE('(', TokenKind::openpar)
        CASE('+', TokenKind::plus)
@@ -91,6 +92,30 @@ void Lexer::next(Token& result) {
        case ':':
            if (*(currPtr + 1) == '=')
                formToken(result, currPtr + 2, TokenKind::colonequal);
+           break;
+       case '<':
+           if (*(currPtr + 1) == '=')
+               formToken(result, currPtr + 2, TokenKind::lesseq);
+           else
+               formToken(result, currPtr + 1, TokenKind::less);
+           break;
+       case '>':
+           if (*(currPtr + 1) == '=')
+               formToken(result, currPtr + 2, TokenKind::greatereq);
+           else
+               formToken(result, currPtr + 1, TokenKind::greater);
+           break;
+       case '!':
+           if (*(currPtr + 1) == '=')
+               formToken(result, currPtr + 2, TokenKind::noteq);
+           break;
+       case '&':
+           if (*(currPtr + 1) == '&')
+               formToken(result, currPtr + 2, TokenKind::logicand);
+           break;
+       case '|':
+           if (*(currPtr + 1) == '|')
+               formToken(result, currPtr + 2, TokenKind::logicor);
            break;
        default:
            diag.report(getLoc(), DiagID::err_unknown_token);

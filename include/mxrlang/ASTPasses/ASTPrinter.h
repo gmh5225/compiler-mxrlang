@@ -21,6 +21,7 @@ class ASTPrinter : public ExprVisitor,
     // Expression visitor methods
     void visit(AssignExpr* expr) override;
     void visit(BinaryArithExpr* expr) override;
+    void visit(BinaryLogicalExpr* expr) override;
     void visit(BoolLiteralExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
@@ -34,6 +35,10 @@ class ASTPrinter : public ExprVisitor,
     void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;
+
+    // Helper functions which prints a binary operator.
+    template <typename BinExpr>
+    void printBinary(std::string& op, BinExpr binExpr);
 
     // Helper function for evaluating an expression or a statement.
     template <typename T>

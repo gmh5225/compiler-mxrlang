@@ -47,6 +47,7 @@ class CodeGen : public ExprVisitor,
     // Expression visitor methods
     void visit(AssignExpr* expr) override;
     void visit(BinaryArithExpr* expr) override;
+    void visit(BinaryLogicalExpr* expr) override;
     void visit(BoolLiteralExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;

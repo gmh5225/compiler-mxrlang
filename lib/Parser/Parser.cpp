@@ -196,7 +196,7 @@ Expr* Parser::expression() {
 }
 
 Expr* Parser::assignment() {
-    auto* expr = addSub();
+    auto* expr = logicalOr();
 
     if (match(TokenKind::colonequal)) {
         auto* source = expression();
@@ -210,17 +210,96 @@ Expr* Parser::assignment() {
     return expr;
 }
 
+Expr* Parser::logicalOr() {
+    auto* expr = logicalAnd();
+
+    while (match(TokenKind::logicor)) {
+        auto opString = std::string(previous().getData());
+        auto* right = logicalAnd();
+        expr = new BinaryLogicalExpr(
+            BinaryLogicalExpr::BinaryLogicalExprKind::Or, expr, right,
+            opString, previous().getLocation());
+    }
+
+    return expr;
+}
+
+Expr* Parser::logicalAnd() {
+    auto* expr = equality();
+
+    while (match(TokenKind::logicand)) {
+        auto opString = std::string(previous().getData());
+        auto* right = equality();
+        expr = new BinaryLogicalExpr(
+            BinaryLogicalExpr::BinaryLogicalExprKind::And, expr, right,
+            opString, previous().getLocation());
+    }
+
+    return expr;
+}
+
+Expr* Parser::equality() {
+    auto* expr = comparison();
+
+    while (match(TokenKind::equal) || match(TokenKind::noteq)) {
+        auto opString = std::string(previous().getData());
+        auto kind = previous().getKind() == TokenKind::equal ?
+            BinaryLogicalExpr::BinaryLogicalExprKind::Eq :
+            BinaryLogicalExpr::BinaryLogicalExprKind::NotEq;
+
+        auto* right = comparison();
+        expr = new BinaryLogicalExpr(kind, expr, right, opString,
+                                     previous().getLocation());
+    }
+
+    return expr;
+}
+
+Expr* Parser::comparison() {
+    auto* expr = addSub();
+
+    while (match(TokenKind::greater) ||
+           match(TokenKind::greatereq) ||
+           match(TokenKind::less) ||
+           match(TokenKind::lesseq)) {
+        auto opString = std::string(previous().getData());
+        BinaryLogicalExpr::BinaryLogicalExprKind kind;
+        switch (previous().getKind()) {
+        case TokenKind::greater:
+            kind = BinaryLogicalExpr::BinaryLogicalExprKind::Greater;
+            break;
+        case TokenKind::greatereq:
+            kind = BinaryLogicalExpr::BinaryLogicalExprKind::GreaterEq;
+            break;
+        case TokenKind::less:
+            kind = BinaryLogicalExpr::BinaryLogicalExprKind::Less;
+            break;
+        case TokenKind::lesseq:
+            kind = BinaryLogicalExpr::BinaryLogicalExprKind::LessEq;
+            break;
+        default:
+            llvm_unreachable("Wrong binary logical operator.");
+        }
+
+        auto* right = addSub();
+        expr = new BinaryLogicalExpr(kind, expr, right, opString,
+                                     previous().getLocation());
+    }
+
+    return expr;
+}
+
 Expr* Parser::addSub() {
     auto* expr = mulDiv();
 
     while (match(TokenKind::plus) || match(TokenKind::minus)) {
-        BinaryArithExpr::BinaryArithExprKind kind =
-            previous().getKind() == TokenKind::plus ?
-                BinaryArithExpr::BinaryArithExprKind::Add :
-                BinaryArithExpr::BinaryArithExprKind::Sub;
+        auto opString = std::string(previous().getData());
+        auto kind = previous().getKind() == TokenKind::plus ?
+            BinaryArithExpr::BinaryArithExprKind::Add :
+            BinaryArithExpr::BinaryArithExprKind::Sub;
 
         auto* right = mulDiv();
-        expr = new BinaryArithExpr(kind, expr, right,
+        expr = new BinaryArithExpr(kind, expr, right, opString,
                                    previous().getLocation());
     }
 
@@ -231,13 +310,14 @@ Expr* Parser::mulDiv() {
     auto* expr = primary();
 
     while (match(TokenKind::star) || match(TokenKind::slash)) {
+        auto opString = std::string(previous().getData());
         BinaryArithExpr::BinaryArithExprKind kind =
             previous().getKind() == TokenKind::star ?
                 BinaryArithExpr::BinaryArithExprKind::Mul :
                 BinaryArithExpr::BinaryArithExprKind::Div;
 
         auto* right = primary();
-        expr = new BinaryArithExpr(kind, expr, right,
+        expr = new BinaryArithExpr(kind, expr, right, opString,
                                    previous().getLocation());
     }
 

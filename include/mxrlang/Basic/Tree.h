@@ -46,6 +46,7 @@ public:
 
 class AssignExpr;
 class BinaryArithExpr;
+class BinaryLogicalExpr;
 class BoolLiteralExpr;
 class GroupingExpr;
 class IntLiteralExpr;
@@ -55,6 +56,7 @@ class ExprVisitor {
 public:
     virtual void visit(AssignExpr* expr) = 0;
     virtual void visit(BinaryArithExpr* expr) = 0;
+    virtual void visit(BinaryLogicalExpr* expr) = 0;
     virtual void visit(BoolLiteralExpr* expr) = 0;
     virtual void visit(GroupingExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
@@ -66,6 +68,7 @@ public:
     enum class ExprKind {
         Assign,
         BinaryArith,
+        BinaryLogical,
         BoolLiteral,
         Grouping,
         IntLiteral,
@@ -125,18 +128,53 @@ private:
     BinaryArithExprKind binKind;
     Expr* left;
     Expr* right;
+    std::string opString;
 
 public:
     BinaryArithExpr(BinaryArithExprKind binKind, Expr* left, Expr* right,
-               llvm::SMLoc loc)
+                    std::string opString, llvm::SMLoc loc)
         : Expr(ExprKind::BinaryArith, loc), binKind(binKind), left(left),
-          right(right) {}
+          right(right), opString(opString) {}
 
     BinaryArithExprKind getBinaryKind() { return binKind; }
     Expr* getLeft() { return left; }
     Expr* getRight() { return right; }
+    std::string& getOpString() { return opString; }
 
     BPLATE_METHODS(Expr, BinaryArith)
+};
+
+class BinaryLogicalExpr : public Expr {
+public:
+    enum class BinaryLogicalExprKind {
+        And,
+        Eq,
+        Greater,
+        GreaterEq,
+        Less,
+        LessEq,
+        NotEq,
+        Or
+    };
+
+private:
+    BinaryLogicalExprKind binKind;
+    Expr* left;
+    Expr* right;
+    std::string opString;
+
+public:
+    BinaryLogicalExpr(BinaryLogicalExprKind binKind, Expr* left,
+                      Expr* right, std::string opString, llvm::SMLoc loc)
+        : Expr(ExprKind::BinaryLogical, loc), binKind(binKind), left(left),
+          right(right), opString(opString) {}
+
+    BinaryLogicalExprKind getBinaryKind() { return binKind; }
+    Expr* getLeft() { return left; }
+    Expr* getRight() { return right; }
+    std::string& getOpString() { return opString; }
+
+    BPLATE_METHODS(Expr, BinaryLogical)
 };
 
 class BoolLiteralExpr : public Expr {

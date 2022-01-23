@@ -54,6 +54,10 @@ public:
                "Cannot get literal data of non-literal.");
         return llvm::StringRef(lexeme, length);
     }
+
+    llvm::StringRef getData() const {
+        return llvm::StringRef(lexeme, length);
+    }
 };
 
 using Tokens = std::list<Token>;

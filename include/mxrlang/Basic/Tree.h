@@ -50,6 +50,7 @@ class BinaryLogicalExpr;
 class BoolLiteralExpr;
 class GroupingExpr;
 class IntLiteralExpr;
+class UnaryExpr;
 class VarExpr;
 
 class ExprVisitor {
@@ -60,6 +61,7 @@ public:
     virtual void visit(BoolLiteralExpr* expr) = 0;
     virtual void visit(GroupingExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
+    virtual void visit(UnaryExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
 };
 
@@ -72,6 +74,7 @@ public:
         BoolLiteral,
         Grouping,
         IntLiteral,
+        Unary,
         Var
     };
 
@@ -215,6 +218,31 @@ public:
     llvm::APSInt& getValue() { return value; }
 
     BPLATE_METHODS(Expr, IntLiteral)
+};
+
+class UnaryExpr : public Expr {
+public:
+    enum class UnaryExprKind {
+        NegArith,
+        NegLogic
+    };
+
+private:
+    UnaryExprKind unaryKind;
+    Expr* expr;
+    std::string opString;
+
+public:
+    UnaryExpr(UnaryExprKind unaryKind, Expr* expr, std::string opString,
+              llvm::SMLoc loc)
+        : Expr(ExprKind::Unary, loc), unaryKind(unaryKind), expr(expr),
+          opString(opString) {}
+
+    UnaryExprKind getUnaryKind() { return unaryKind; }
+    Expr* getExpr() { return expr; }
+    std::string& getOpString() { return opString; }
+
+    BPLATE_METHODS(Expr, Unary)
 };
 
 class VarExpr : public Expr {
@@ -398,5 +426,7 @@ public:
 };
 
 } // namespace mxrlang
+
+#undef BPLATE_METHODS
 
 #endif // TREE_H

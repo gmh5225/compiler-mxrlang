@@ -307,21 +307,35 @@ Expr* Parser::addSub() {
 }
 
 Expr* Parser::mulDiv() {
-    auto* expr = primary();
+    auto* expr = unary();
 
     while (match(TokenKind::star) || match(TokenKind::slash)) {
         auto opString = std::string(previous().getData());
-        BinaryArithExpr::BinaryArithExprKind kind =
-            previous().getKind() == TokenKind::star ?
-                BinaryArithExpr::BinaryArithExprKind::Mul :
-                BinaryArithExpr::BinaryArithExprKind::Div;
+        auto kind = previous().getKind() == TokenKind::star ?
+            BinaryArithExpr::BinaryArithExprKind::Mul :
+            BinaryArithExpr::BinaryArithExprKind::Div;
 
-        auto* right = primary();
+        auto* right = unary();
         expr = new BinaryArithExpr(kind, expr, right, opString,
                                    previous().getLocation());
     }
 
     return expr;
+}
+
+Expr* Parser::unary() {
+    if (match(TokenKind::bang) || match(TokenKind::minus)) {
+        auto opString = std::string(previous().getData());
+        auto kind = previous().getKind() == TokenKind::bang ?
+            UnaryExpr::UnaryExprKind::NegLogic :
+            UnaryExpr::UnaryExprKind::NegArith;
+
+        auto* expr = primary();
+        return new UnaryExpr(kind, expr, opString,
+                             previous().getLocation());
+    }
+
+    return primary();
 }
 
 Expr* Parser::primary() {

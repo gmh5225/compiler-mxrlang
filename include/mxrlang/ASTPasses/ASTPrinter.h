@@ -25,6 +25,7 @@ class ASTPrinter : public ExprVisitor,
     void visit(BoolLiteralExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
+    void visit(UnaryExpr* expr) override;
     void visit(VarExpr* expr) override;
 
     // Statement visitor methods

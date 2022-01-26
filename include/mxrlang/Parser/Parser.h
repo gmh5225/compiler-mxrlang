@@ -68,6 +68,7 @@ class Parser {
     Expr* logicalAnd();
     Expr* equality();
     Expr* comparison();
+    Expr* unary();
     Expr* primary();
 
 public:

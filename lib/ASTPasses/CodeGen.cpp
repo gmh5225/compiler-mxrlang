@@ -80,7 +80,7 @@ void CodeGen::visit(BinaryArithExpr *expr) {
         interResult = builder.CreateSub(left, right, "sub");
         break;
     default:
-        llvm_unreachable("Invalid binary arithmetic operator.");
+        llvm_unreachable("Unexpected binary arithmetic expression kind.");
     }
 }
 
@@ -118,6 +118,8 @@ void CodeGen::visit(BinaryLogicalExpr* expr) {
     case BinaryLogicalExpr::BinaryLogicalExprKind::Or:
         interResult = builder.CreateOr(left, right, "or");
         break;
+    default:
+        llvm_unreachable("Unexpected binary logical expression kind.");
     }
 }
 
@@ -135,6 +137,21 @@ void CodeGen::visit(IntLiteralExpr* expr) {
     auto* lit = llvm::ConstantInt::get(
                 convertTypeToLLVMType(expr->getType()), expr->getValue());
     interResult = lit;
+}
+
+void CodeGen::visit(UnaryExpr* expr) {
+    evaluate(expr->getExpr());
+
+    switch (expr->getUnaryKind()) {
+    case UnaryExpr::UnaryExprKind::NegArith:
+        interResult = builder.CreateNeg(interResult, "neg");
+        break;
+    case UnaryExpr::UnaryExprKind::NegLogic:
+        interResult = builder.CreateNot(interResult, "not");
+        break;
+    default:
+        llvm_unreachable("Unexpected unary expression kind.");
+    }
 }
 
 void CodeGen::visit(VarExpr* expr) {

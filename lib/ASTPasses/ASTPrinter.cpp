@@ -48,6 +48,12 @@ void ASTPrinter::visit(IntLiteralExpr* expr) {
               expr->getType()->toString() + ")";
 }
 
+void ASTPrinter::visit(UnaryExpr* expr) {
+    result += "(" + expr->getOpString() + " ";
+    evaluate(expr->getExpr());
+    result += ")";
+}
+
 void ASTPrinter::visit(VarExpr* expr) {
     result += "(" + expr->getName().str() + " " +
               expr->getType()->toString() + ")";

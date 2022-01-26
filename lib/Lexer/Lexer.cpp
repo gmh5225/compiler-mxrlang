@@ -108,6 +108,8 @@ void Lexer::next(Token& result) {
        case '!':
            if (*(currPtr + 1) == '=')
                formToken(result, currPtr + 2, TokenKind::noteq);
+           else
+               formToken(result, currPtr + 1, TokenKind::bang);
            break;
        case '&':
            if (*(currPtr + 1) == '&')

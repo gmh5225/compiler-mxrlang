@@ -24,6 +24,7 @@ class CodeGen : public ExprVisitor,
     llvm::Function* printFun;
     llvm::Constant* formatStr;
 
+    // LLVM internals.
     llvm::LLVMContext ctx;
     llvm::TargetMachine* TM;
     std::unique_ptr<llvm::Module> module;
@@ -51,6 +52,7 @@ class CodeGen : public ExprVisitor,
     void visit(BoolLiteralExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
+    void visit(UnaryExpr* expr) override;
     void visit(VarExpr* expr) override;
 
     // Statement visitor methods

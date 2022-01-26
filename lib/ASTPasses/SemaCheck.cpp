@@ -67,6 +67,22 @@ void SemaCheck::visit(GroupingExpr* expr) {
 
 void SemaCheck::visit(IntLiteralExpr* expr) {}
 
+void SemaCheck::visit(UnaryExpr* expr) {
+    evaluate(expr->getExpr());
+
+    auto exprTy = expr->getExpr()->getType();
+    auto kind = expr->getUnaryKind();
+    if (kind == UnaryExpr::UnaryExprKind::NegArith) {
+        if (exprTy != Type::getIntType())
+            diag.report(expr->getLoc(), DiagID::err_arith_type);
+    } else {
+        if (exprTy != Type::getBoolType())
+            diag.report(expr->getLoc(), DiagID::err_logic_type);
+    }
+
+    expr->setType(exprTy);
+}
+
 void SemaCheck::visit(VarExpr* expr) {
     // Report an error if we cannot find this declaration.
     auto* varDecl = env->find(expr->getName());

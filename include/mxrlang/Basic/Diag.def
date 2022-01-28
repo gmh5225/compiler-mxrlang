@@ -15,6 +15,7 @@ DIAG(err_expect_stmt, Error, "Expected statement.")
 DIAG(err_invalid_assign_target, Error, "Invalid assignment target.")
 DIAG(err_expect_then, Error, "Expected THEN.")
 DIAG(err_expect_closedpar, Error, "Expected ')'.")
+DIAG(err_expect_colon, Error, "Expected ':'.")
 
 // Semantic check errors
 DIAG(err_var_redefine, Error, "Redefinition of an existing variable.")

@@ -92,6 +92,8 @@ void Lexer::next(Token& result) {
        case ':':
            if (*(currPtr + 1) == '=')
                formToken(result, currPtr + 2, TokenKind::colonequal);
+           else
+               formToken(result, currPtr + 1, TokenKind::colon);
            break;
        case '<':
            if (*(currPtr + 1) == '=')

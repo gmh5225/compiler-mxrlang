@@ -166,14 +166,16 @@ Stmt* Parser::returnStmt() {
     return new ReturnStmt(retExpr, previous().getLocation());
 }
 
-Stmt* Parser::varDeclaration() {
+Stmt* Parser::varDeclaration() {    
+    const Token& name = consume(DiagID::err_expect_var_name,
+                                TokenKind::identifier);
+
+    consume(DiagID::err_expect_colon, TokenKind::colon);
+
     // Must consume a type.
     const Token& typeTok = consume(DiagID::err_expect_type,
                                    TokenKind::kw_INT, TokenKind::kw_BOOL);
     Type* varType = Type::getTypeFromToken(typeTok);
-
-    const Token& name = consume(DiagID::err_expect_var_name,
-                                TokenKind::identifier);
 
     Expr* initializer = nullptr;
     if (match(TokenKind::colonequal))

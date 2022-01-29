@@ -38,17 +38,15 @@ class Parser {
     Token& previous();
     // Check whether the next token matches the expected and advance the stream
     // if it does. Conversely, throw an error.
-    Token& consume(DiagID diagID, TokenKind kind);
-
-    template <typename... Ts>
-    Token& consume(DiagID diagID, TokenKind kind, Ts... kinds);
+    Token& consume(std::initializer_list<TokenKind> kinds, DiagID diagID,
+                   std::string args...);
 
     // Discard the (possibly) erroneous tokens until we see one of the
     // synchronization tokens. Called after the parser reports an error.
     void synchronize();
 
     // Report an error and throw an exception.
-    ParserError error(const Token& tok, DiagID diagID);
+    ParserError error(const Token& tok, DiagID diagID, std::string args...);
 
     // Productions.
     FunStmt* funDeclaration();

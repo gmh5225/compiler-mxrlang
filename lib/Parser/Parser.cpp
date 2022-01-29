@@ -46,19 +46,14 @@ Token& Parser::previous() {
 
 // Check whether the next token matches the expected and advance the stream
 // if it does. Conversely, throw an error.
-Token& Parser::consume(DiagID diagID, TokenKind kind) {
-    if (check(kind))
-        return advance();
+Token& Parser::consume(std::initializer_list<TokenKind> kinds,
+                       DiagID diagID, std::string args...) {
+    for (auto kind = kinds.begin(); kind != kinds.end(); kind++) {
+        if (check(*kind))
+            return advance();
+    }
 
-    throw error(peek(), diagID);
-}
-
-template <typename... Ts>
-Token& Parser::consume(DiagID diagID, TokenKind kind, Ts... kinds) {
-    if (check(kind))
-        return advance();
-
-    return consume(diagID, kinds...);
+    throw error(peek(), diagID, std::move(args));
 }
 
 // Discard the (possibly) erroneous tokens until we see one of the
@@ -87,8 +82,9 @@ void Parser::synchronize() {
 }
 
 // Report an error and throw an exception.
-Parser::ParserError Parser::error(const Token& tok, DiagID id) {
-    diag.report(tok.getLocation(), id);
+Parser::ParserError Parser::error(const Token& tok, DiagID id,
+                                  std::string args...) {
+    diag.report(tok.getLocation(), id, args);
     return ParserError();
 }
 
@@ -132,7 +128,7 @@ Stmt* Parser::ifStmt() {
     Stmts elseStmts;
     Expr* cond = expression();
 
-    consume(DiagID::err_expect_then, TokenKind::kw_THEN);
+    consume({TokenKind::kw_THEN}, DiagID::err_expect, "THEN"s);
 
     // Parse the statements in the THEN block.
     while (!(match(TokenKind::kw_ELSE) || match(TokenKind::kw_FI)))
@@ -152,7 +148,7 @@ Stmt* Parser::ifStmt() {
 Stmt* Parser::printStmt() {
     Expr* printExpr = expression();
 
-    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
+    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new PrintStmt(printExpr, previous().getLocation());
 }
 
@@ -162,33 +158,33 @@ Stmt* Parser::returnStmt() {
     if (!check(TokenKind::semicolon))
         retExpr = expression();
 
-    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
+    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new ReturnStmt(retExpr, previous().getLocation());
 }
 
 Stmt* Parser::varDeclaration() {    
-    const Token& name = consume(DiagID::err_expect_var_name,
-                                TokenKind::identifier);
+    const Token& name = consume({TokenKind::identifier}, DiagID::err_expect,
+                                "identifer"s);
 
-    consume(DiagID::err_expect_colon, TokenKind::colon);
+    consume({TokenKind::colon}, DiagID::err_expect, ":"s);
 
     // Must consume a type.
-    const Token& typeTok = consume(DiagID::err_expect_type,
-                                   TokenKind::kw_INT, TokenKind::kw_BOOL);
+    const Token& typeTok = consume({TokenKind::kw_INT, TokenKind::kw_BOOL},
+                                   DiagID::err_expect, "type");
     Type* varType = Type::getTypeFromToken(typeTok);
 
     Expr* initializer = nullptr;
     if (match(TokenKind::colonequal))
         initializer = expression();
 
-    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
+    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new VarStmt(name.getIdentifier(), initializer, varType,
                        name.getLocation());
 }
 
 Stmt* Parser::exprStmt() {
     Expr* expr = expression();
-    consume(DiagID::err_expect_semicol, TokenKind::semicolon);
+    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
 
     return new ExprStmt(expr, previous().getLocation());
 }
@@ -206,7 +202,7 @@ Expr* Parser::assignment() {
         auto* assign = expr->makeAssignExpr(source);
         if (assign)
             return assign;
-        throw error(peek(), DiagID::err_invalid_assign_target);
+        throw error(peek(), DiagID::err_invalid_assign_target, ""s);
     }
 
     return expr;
@@ -348,7 +344,7 @@ Expr* Parser::primary() {
         return new BoolLiteralExpr(value, previous().getLocation());
     } else if (match(TokenKind::openpar)) {
         auto* expr = expression();
-        consume(DiagID::err_expect_closedpar, TokenKind::closedpar);
+        consume({TokenKind::closedpar}, DiagID::err_expect, ")"s);
         return new GroupingExpr(expr, previous().getLocation());
     } else if (match(TokenKind::integer_literal))
         return new IntLiteralExpr(previous().getLiteralData(),
@@ -357,7 +353,7 @@ Expr* Parser::primary() {
         return new VarExpr(previous().getIdentifier(),
                            previous().getLocation());
 
-    throw error(peek(), DiagID::err_expect_expr);
+    throw error(peek(), DiagID::err_expect, "expression"s);
 }
 
 // Parse the token stream and return the root of the AST.

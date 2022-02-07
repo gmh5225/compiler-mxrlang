@@ -11,7 +11,9 @@ DIAG(err_expect, Error, "Expected {0}.")
 
 // Semantic check errors
 DIAG(err_var_redefine, Error, "Redefinition of an existing variable.")
+DIAG(err_fun_redefine, Error, "Redefinition of an existing function.")
 DIAG(err_var_undefined, Error, "Undefined variable.")
+DIAG(err_fun_undefined, Error, "Undefined function.")
 DIAG(err_ret_val_undefined, Error, "Must have a return value.")
 DIAG(err_no_return, Error, "Function must have a return statement.")
 DIAG(err_incompatible_types, Error, "Incompatible types.")
@@ -19,5 +21,7 @@ DIAG(err_ret_type_mismatch, Error, "Mismatching return type.")
 DIAG(err_cond_not_bool, Error, "Condition must be of boolean type.")
 DIAG(err_arith_type, Error, "Arithmetic operators expect operands of INT type.")
 DIAG(err_logic_type, Error, "Logical operators expect operands of BOOL type.")
+DIAG(err_arg_num_mismatch, Error, "Number of function call and declaration arguments mismatching.")
+DIAG(err_arg_type_mismatch, Error, "Type of function call and declaration argument mismatching.")
 
 #undef DIAG

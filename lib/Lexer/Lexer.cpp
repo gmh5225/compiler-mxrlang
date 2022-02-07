@@ -81,6 +81,7 @@ void Lexer::next(Token& result) {
         break;
 
        CASE(')', TokenKind::closedpar)
+       CASE(',', TokenKind::comma)
        CASE('=', TokenKind::equal)
        CASE('-', TokenKind::minus)
        CASE('(', TokenKind::openpar)

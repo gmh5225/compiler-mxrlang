@@ -59,6 +59,37 @@ void SemaCheck::visit(BinaryLogicalExpr* expr) {
 
 void SemaCheck::visit(BoolLiteralExpr* expr) {}
 
+void SemaCheck::visit(CallExpr* expr) {
+    // Function should be declared at the module level.
+    auto* funDecl = env->find(expr->getName());
+    if (!funDecl) {
+        diag.report(expr->getLoc(), DiagID::err_fun_undefined);
+        return;
+    }
+
+    FunStmt* funDeclCast = llvm::dyn_cast<FunStmt>(funDecl);
+    assert(funDeclCast && "This must be a FunStmt.");
+
+    // Function call and declaration must have a matching number of
+    // arguments.
+    if (funDeclCast->getArgs().size() != expr->getArgs().size())
+        diag.report(expr->getLoc(), DiagID::err_arg_num_mismatch);
+
+    // Argument types must match.
+    for (size_t argNum = 0; argNum < expr->getArgs().size(); argNum++) {
+        auto* callArg = expr->getArgs().at(argNum);
+        auto* declArg = funDeclCast->getArgs().at(argNum);
+
+        // Process the argument.
+        evaluate(callArg);
+
+        if (callArg->getType() != declArg->getType())
+            diag.report(expr->getLoc(), DiagID::err_arg_type_mismatch);
+    }
+
+    expr->setType(funDeclCast->getType());
+}
+
 void SemaCheck::visit(GroupingExpr* expr) {
     evaluate(expr->getExpr());
 
@@ -104,6 +135,10 @@ void SemaCheck::visit(FunStmt* stmt) {
     // Reset the seenReturn flag at the beginning of each function.
     seenReturn = false;
 
+    // Register the arguments.
+    for (auto arg : stmt->getArgs())
+        evaluate(arg);
+
     for (auto st : stmt->getBody())
         evaluate(st);
 
@@ -135,6 +170,15 @@ void SemaCheck::visit(IfStmt* stmt) {
 
 void SemaCheck::visit(ModuleStmt* stmt) {
     SemaCheckScopeMgr scopeMgr(*this);
+    // Forward declare all functions.
+    for (auto st : stmt->getBody()) {
+        auto* funStmt = llvm::dyn_cast<FunStmt>(st);
+
+        // Report an error if this is a redefinition.
+        if (!env->insert(funStmt, funStmt->getName()))
+            diag.report(funStmt->getLoc(), DiagID::err_fun_redefine);
+    }
+
     for (auto st : stmt->getBody())
         evaluate(st);
 }

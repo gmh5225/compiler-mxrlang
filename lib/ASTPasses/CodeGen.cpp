@@ -24,10 +24,15 @@ llvm::Type* CodeGen::convertTypeToLLVMType(Type* type) {
     llvm_unreachable("Unknown type.");
 }
 
-llvm::FunctionType *CodeGen::createFunctionType(FunStmt* stmt) {
-    // FIXME: Currently only possible to return an Int64 value.
-    auto* resultTy = convertTypeToLLVMType(stmt->getType());
-    return llvm::FunctionType::get(resultTy, /*isVarArg*/ false);
+llvm::FunctionType* CodeGen::createFunctionType(FunStmt* stmt) {
+    auto* retTy = convertTypeToLLVMType(stmt->getType());
+
+    // Convert argument types to LLVM types.
+    std::vector<llvm::Type*> args;
+    for (auto arg : stmt->getArgs())
+        args.push_back(convertTypeToLLVMType(arg->getType()));
+
+    return llvm::FunctionType::get(retTy, args, /*isVarArg*/ false);
 }
 
 llvm::Function *CodeGen::createFunction(FunStmt* stmt,
@@ -129,6 +134,19 @@ void CodeGen::visit(BoolLiteralExpr* expr) {
     interResult = lit;
 }
 
+void CodeGen::visit(CallExpr* expr) {
+    llvm::Function* callee =
+        llvm::dyn_cast<llvm::Function>(env->find(expr->getName()));
+
+    std::vector<llvm::Value*> args;
+    for (auto arg : expr->getArgs()) {
+        evaluate(arg);
+        args.push_back(interResult);
+    }
+
+    interResult = builder.CreateCall(callee, args, "calltmp");
+}
+
 void CodeGen::visit(GroupingExpr* expr) {
     evaluate(expr->getExpr());
 }
@@ -167,15 +185,28 @@ void CodeGen::visit(ExprStmt* stmt) {
 }
 
 void CodeGen::visit(FunStmt* stmt) {
-    auto* funTy = createFunctionType(stmt);
-    auto* fun = createFunction(stmt, funTy);
+    llvm::Function* fun =
+        llvm::dyn_cast<llvm::Function>(env->find(stmt->getName()));
     currFun = fun;
 
-    // Currently has only one BB.
+    // Create the entry BB.
     llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(ctx, "entry", fun);
     setCurrBB(entryBB);
 
-    AllocaScopeMgr scopeMgr(*this);
+    ValueScopeMgr scopeMgr(*this);
+    // Record the function arguments.
+    auto stmtArg = stmt->getArgs().begin();
+    auto llvmArg = fun->args().begin();
+    for (; stmtArg != stmt->getArgs().end(); ++stmtArg, ++llvmArg) {
+        // Create alloca for this argument and store it;
+        llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
+                                     currFun->getEntryBlock().begin());
+        auto* alloca = tmpBuilder.CreateAlloca(llvmArg->getType(),
+                                               0, (*stmtArg)->getName());
+        tmpBuilder.CreateStore(llvmArg, alloca);
+        env->insert(alloca, (*stmtArg)->getName());
+    }
+
     for (auto funStmt : stmt->getBody())
         evaluate(funStmt);
 }
@@ -199,10 +230,9 @@ void CodeGen::visit(IfStmt* stmt) {
     setCurrBB(thenBB);
     // Use RAII to manage the lifetime of scopes.
     {
-        AllocaScopeMgr scopeMgr(*this);
-        for (auto thenStmt : stmt->getThenStmts()) {
+        ValueScopeMgr scopeMgr(*this);
+        for (auto thenStmt : stmt->getThenStmts())
             evaluate(thenStmt);
-        }
     }
     builder.CreateBr(mergeBB);
 
@@ -212,10 +242,9 @@ void CodeGen::visit(IfStmt* stmt) {
         setCurrBB(elseBB);
         // Use RAII to manage the lifetime of scopes.
         {
-            AllocaScopeMgr scopeMgr(*this);
-            for (auto elseStmt : stmt->getElseStmts()) {
+            ValueScopeMgr scopeMgr(*this);
+            for (auto elseStmt : stmt->getElseStmts())
                 evaluate(elseStmt);
-            }
         }
         builder.CreateBr(mergeBB);
     }
@@ -226,13 +255,23 @@ void CodeGen::visit(IfStmt* stmt) {
 }
 
 void CodeGen::visit(ModuleStmt* stmt) {
-    AllocaScopeMgr scopeMgr(*this);
+    ValueScopeMgr scopeMgr(*this);
+    // Create a built-in PRINT function.
     createPrintFunction();
 
-    // FIXME: Currently only "main" function exists, which is implicitly
-    // declared.
-    assert(stmt->getBody().size() == 1);
-    evaluate(stmt->getBody().at(0));
+    // Forward declare all module functions.
+    for (auto funStmt : stmt->getBody()) {
+        assert(llvm::isa<FunStmt>(funStmt));
+        FunStmt* funStmtCast = llvm::dyn_cast<FunStmt>(funStmt);
+        auto* funTy = createFunctionType(funStmtCast);
+        auto* fun = createFunction(funStmtCast, funTy);
+
+        env->insert(fun, funStmtCast->getName());
+    }
+
+    // Now generate code for all module functions.
+    for (auto funStmt : stmt->getBody())
+        evaluate(funStmt);
 }
 
 void CodeGen::visit(PrintStmt* stmt) {

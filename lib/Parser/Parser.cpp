@@ -53,7 +53,8 @@ Token& Parser::consume(std::initializer_list<TokenKind> kinds,
             return advance();
     }
 
-    throw error(peek(), diagID, std::move(args));
+    auto perror = error(peek(), diagID, std::move(args));
+    throw perror;
 }
 
 // Discard the (possibly) erroneous tokens until we see one of the
@@ -68,7 +69,10 @@ void Parser::synchronize() {
 
         switch (peek().getKind()) {
         case TokenKind::kw_ELSE:
+        case TokenKind::kw_FI:
+        case TokenKind::kw_FUN:
         case TokenKind::kw_IF:
+        case TokenKind::kw_NUF:
         case TokenKind::kw_PRINT:
         case TokenKind::kw_THEN:
         case TokenKind::kw_VAR:
@@ -85,19 +89,66 @@ void Parser::synchronize() {
 Parser::ParserError Parser::error(const Token& tok, DiagID id,
                                   std::string args...) {
     diag.report(tok.getLocation(), id, args);
-    return ParserError();
+    auto perror = ParserError();
+    return perror;
+}
+
+// Helper which creates a VarStmt while parsing variable declarations,
+// or function declaration arguments.
+VarStmt* Parser::parseSingleVar(bool isFunArg) {
+    // Parse the variable name.
+    const Token& name = consume({TokenKind::identifier}, DiagID::err_expect,
+                                "identifer"s);
+
+    consume({TokenKind::colon}, DiagID::err_expect, ":"s);
+
+    // Parse the type.
+    const Token& typeTok = consume({TokenKind::kw_INT, TokenKind::kw_BOOL},
+                                   DiagID::err_expect, "type");
+    Type* varType = Type::getTypeFromToken(typeTok);
+
+    // Parse the initializer, if it exists.
+    Expr* initializer = nullptr;
+    if (!isFunArg && match(TokenKind::colonequal))
+        initializer = expression();
+
+    return new VarStmt(name.getIdentifier(), initializer, varType,
+                       name.getLocation());
 }
 
 FunStmt* Parser::funDeclaration() {
     Stmts stmts;
-    Token& funToken = peek();
-    // For now, just parse the whole file, beause the whole file is a
-    // singular function.
-    while (!isAtEnd())
+    Token& funToken = consume({TokenKind::kw_FUN}, DiagID::err_expect,
+                              "FUN"s);
+    Token& funName = consume({TokenKind::identifier}, DiagID::err_expect,
+                             "identifier"s);
+
+    // Parse function arguments.
+    FunDeclArgs args;
+    consume({TokenKind::openpar}, DiagID::err_expect, ")"s);
+
+    while (!match(TokenKind::closedpar) && !isAtEnd()) {
+        // Store the argument as VarStmt.
+        args.push_back(parseSingleVar(true));
+
+        bool seenComma = match(TokenKind::comma);
+        if (!seenComma && (peek().getKind() != TokenKind::closedpar))
+            throw error(peek(), DiagID::err_expect, ",");
+        if (seenComma && (peek().getKind() == TokenKind::closedpar))
+            throw error(peek(), DiagID::err_expect, "function argument");
+    }
+
+    // Parse the return type.
+    consume({TokenKind::colon}, DiagID::err_expect, ":"s);
+    const Token& typeTok = consume({TokenKind::kw_INT, TokenKind::kw_BOOL},
+                                   DiagID::err_expect, "type");
+    Type* retType = Type::getTypeFromToken(typeTok);
+
+    while (!match(TokenKind::kw_NUF) && !isAtEnd())
         stmts.emplace_back(declaration());
 
-    return new FunStmt("main", std::move(stmts),
-                       funToken.getLocation());
+    return new FunStmt(funName.getIdentifier(), retType, std::move(args),
+                       std::move(stmts), funToken.getLocation());
 }
 
 Stmt* Parser::declaration() {
@@ -131,12 +182,13 @@ Stmt* Parser::ifStmt() {
     consume({TokenKind::kw_THEN}, DiagID::err_expect, "THEN"s);
 
     // Parse the statements in the THEN block.
-    while (!(match(TokenKind::kw_ELSE) || match(TokenKind::kw_FI)))
+    while (!(match(TokenKind::kw_ELSE) || match(TokenKind::kw_FI)) &&
+           !isAtEnd())
         thenStmts.push_back(declaration());
 
     // Parse the statements in the ELSE block.
     if (previous().getKind() == TokenKind::kw_ELSE) {
-        while (!match(TokenKind::kw_FI)) {
+        while (!match(TokenKind::kw_FI) && !isAtEnd()) {
             elseStmts.push_back(declaration());
         }
     }
@@ -162,24 +214,11 @@ Stmt* Parser::returnStmt() {
     return new ReturnStmt(retExpr, previous().getLocation());
 }
 
-Stmt* Parser::varDeclaration() {    
-    const Token& name = consume({TokenKind::identifier}, DiagID::err_expect,
-                                "identifer"s);
-
-    consume({TokenKind::colon}, DiagID::err_expect, ":"s);
-
-    // Must consume a type.
-    const Token& typeTok = consume({TokenKind::kw_INT, TokenKind::kw_BOOL},
-                                   DiagID::err_expect, "type");
-    Type* varType = Type::getTypeFromToken(typeTok);
-
-    Expr* initializer = nullptr;
-    if (match(TokenKind::colonequal))
-        initializer = expression();
-
+Stmt* Parser::varDeclaration() {
+    auto* varStmt = parseSingleVar(false);
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
-    return new VarStmt(name.getIdentifier(), initializer, varType,
-                       name.getLocation());
+
+    return varStmt;
 }
 
 Stmt* Parser::exprStmt() {
@@ -350,20 +389,52 @@ Expr* Parser::primary() {
         return new IntLiteralExpr(previous().getLiteralData(),
                                   previous().getLocation());
     else if (match(TokenKind::identifier))
-        return new VarExpr(previous().getIdentifier(),
-                           previous().getLocation());
+        return identifier();
 
     throw error(peek(), DiagID::err_expect, "expression"s);
 }
 
+Expr* Parser::identifier() {
+    Token& name = previous();
+
+    // If we see '(', this is a function call.
+    if (match(TokenKind::openpar)) {
+        FunCallArgs args;
+        while (!match(TokenKind::closedpar) && !isAtEnd()) {
+            // Parse the argument as an expression.
+            args.push_back(expression());
+
+            bool seenComma = match(TokenKind::comma);
+            if (!seenComma && (peek().getKind() != TokenKind::closedpar))
+                throw error(peek(), DiagID::err_expect, ",");
+            if (seenComma && (peek().getKind() == TokenKind::closedpar))
+                throw error(peek(), DiagID::err_expect, "expression");
+        }
+
+        return new CallExpr(name.getData(), std::move(args),
+                            name.getLocation());
+    } else {
+        // Otherwise, it's a variable access.
+        return new VarExpr(name.getData(), name.getLocation());
+    }
+}
+
 // Parse the token stream and return the root of the AST.
 ModuleStmt* Parser::parse() {
-    // Currently, only a single module exists, which contains a single
-    // implicit "main" function.
     Token& moduleToken = peek();
-    Stmts stmts{funDeclaration()};
+    Stmts funStmts;
 
-    ModuleStmt* moduleStmt = new ModuleStmt("main", std::move(stmts),
+    // Parse all functions inside the file.
+    while (!isAtEnd()) {
+        // Catch any errors when parsing module functions.
+        try {
+            funStmts.push_back(funDeclaration());
+        } catch (ParserError& e) {
+            return nullptr;
+        }
+    }
+
+    ModuleStmt* moduleStmt = new ModuleStmt("main", std::move(funStmts),
                                             moduleToken.getLocation());
     return moduleStmt;
 }

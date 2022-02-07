@@ -23,6 +23,7 @@ class SemaCheck : public ExprVisitor,
     void visit(BinaryArithExpr* expr) override;
     void visit(BinaryLogicalExpr* expr) override;
     void visit(BoolLiteralExpr* expr) override;
+    void visit(CallExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
     void visit(UnaryExpr* expr) override;

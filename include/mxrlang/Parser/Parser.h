@@ -48,6 +48,10 @@ class Parser {
     // Report an error and throw an exception.
     ParserError error(const Token& tok, DiagID diagID, std::string args...);
 
+    // Helper which creates a VarStmt while parsing variable declarations,
+    // or function declaration arguments.
+    VarStmt* parseSingleVar(bool isFunArg);
+
     // Productions.
     FunStmt* funDeclaration();
     Stmt* declaration();
@@ -68,6 +72,7 @@ class Parser {
     Expr* comparison();
     Expr* unary();
     Expr* primary();
+    Expr* identifier();
 
 public:
     Parser(Tokens& tokens, Diag& diag)

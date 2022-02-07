@@ -13,6 +13,10 @@ void ASTPrinter::printBinary(std::string& op, BinExpr binExpr) {
     result += ")";
 }
 
+void ASTPrinter::printVar(VarStmt* stmt) {
+    result += stmt->getName().str() + " " + stmt->getType()->toString();
+}
+
 void ASTPrinter::visit(AssignExpr* expr) {
     result += "(= ";
     evaluate(expr->getDest());
@@ -32,6 +36,15 @@ void ASTPrinter::visit(BinaryLogicalExpr* expr) {
 void ASTPrinter::visit(BoolLiteralExpr* expr) {
     std::string value = expr->getValue() ? "true" : "false";
     result += "(" + value + " " + expr->getType()->toString() + ")";
+}
+
+void ASTPrinter::visit(CallExpr* expr) {
+    result += "(call " + expr->getName().str();
+    for (auto arg : expr->getArgs()) {
+        result += " ";
+        evaluate(arg);
+    }
+    result += ")";
 }
 
 void ASTPrinter::visit(GroupingExpr* expr) {
@@ -60,20 +73,28 @@ void ASTPrinter::visit(VarExpr* expr) {
 }
 
 void ASTPrinter::visit(ExprStmt* stmt) {
-    result += indent + "Statement " + std::to_string(currStmt++) + "\n"
-              + indent;
+    result += indent;
     evaluate(stmt->getExpr());
     result += "\n";
 }
 
 void ASTPrinter::visit(FunStmt* stmt) {
+    result += "(fun " + stmt->getName().str() + " " +
+              stmt->getType()->toString();
+    for (auto arg : stmt->getArgs()) {
+        result += " (";
+        printVar(arg);
+        result += ")";
+    }
+    result += ")\n";
+
+    increaseIndent();
     for (auto st : stmt->getBody())
         evaluate(st);
+    decreaseIndent();
 }
 
 void ASTPrinter::visit(IfStmt* stmt) {
-    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
-
     result += indent + "(if ";
     increaseIndent();
     evaluate(stmt->getCond());
@@ -103,7 +124,6 @@ void ASTPrinter::visit(ModuleStmt* stmt) {
 }
 
 void ASTPrinter::visit(PrintStmt* stmt) {
-    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
     result += indent + "(print ";
 
     evaluate(stmt->getPrintExpr());
@@ -112,8 +132,6 @@ void ASTPrinter::visit(PrintStmt* stmt) {
 }
 
 void ASTPrinter::visit(ReturnStmt* stmt) {
-    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
-
     result += indent + "(return ";
 
     // If there is a return value, print it.
@@ -124,16 +142,10 @@ void ASTPrinter::visit(ReturnStmt* stmt) {
 }
 
 void ASTPrinter::visit(VarStmt* stmt) {
-    result += indent + "Statement " + std::to_string(currStmt++) + "\n";
-
     // Print the operation.
     result += indent + "(var ";
 
-    // Print the name.
-    result += stmt->getName().str() + " ";
-
-    // Print the type.
-    result += stmt->getType()->toString();
+    printVar(stmt);
 
     // If there is an initializer, print it.
     if (stmt->getInitializer()) {

@@ -14,11 +14,11 @@ namespace mxrlang {
 
 class CodeGen : public ExprVisitor,
                 public StmtVisitor {
-    friend class ScopeMgr<CodeGen, llvm::AllocaInst>;
-    using AllocaScopeMgr = ScopeMgr<CodeGen, llvm::AllocaInst>;
+    friend class ScopeMgr<CodeGen, llvm::Value>;
+    using ValueScopeMgr = ScopeMgr<CodeGen, llvm::Value>;
 
-    // Environment holding local variable allocas.
-    Environment<llvm::AllocaInst>* env = nullptr;
+    // Environment holding various Value pointers (allocas, functions, etc).
+    Environment<llvm::Value>* env = nullptr;
 
     // Built-in print function declaration and format string.
     llvm::Function* printFun;
@@ -50,6 +50,7 @@ class CodeGen : public ExprVisitor,
     void visit(BinaryArithExpr* expr) override;
     void visit(BinaryLogicalExpr* expr) override;
     void visit(BoolLiteralExpr* expr) override;
+    void visit(CallExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
     void visit(UnaryExpr* expr) override;

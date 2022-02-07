@@ -14,40 +14,51 @@
 // and statement classes.
 
 // Generates boilerplate code for each class.
-#define BPLATE_METHODS(PARENT, KIND)                            \
+#define ACCEPT(PARENT, KIND)                                    \
     virtual void accept(PARENT##Visitor* visitor) override {    \
         visitor->visit(this);                                   \
     }                                                           \
+
+#define CLASSOF(PARENT, KIND)                                   \
     static bool classof(const PARENT* node) {                   \
         return node->getKind() == PARENT##Kind::KIND;           \
     }                                                           \
 
 namespace mxrlang {
 
-class Stmt;
-
-using Stmts = std::vector<Stmt*>;
-
 // The following class describes a declaration.
 
 class Decl {
+public:
+    enum class DeclKind {
+        Fun,
+        Module,
+        Var
+    };
+
+private:
     llvm::StringRef name;
+    DeclKind kind;
     Type* type;
 
 public:
-    Decl(llvm::StringRef name, Type* type = Type::getIntType())
-        : name(name), type(type) {}
+    Decl(llvm::StringRef name, DeclKind kind,
+         Type* type = Type::getIntType())
+        : name(name), kind(kind), type(type) {}
 
     llvm::StringRef getName() const { return name; }
+    DeclKind getKind() const { return kind; }
     Type* getType() { return type; }
 };
 
 // The following classes describe expression nodes of the AST.
 
+class Expr;
 class AssignExpr;
 class BinaryArithExpr;
 class BinaryLogicalExpr;
 class BoolLiteralExpr;
+class CallExpr;
 class GroupingExpr;
 class IntLiteralExpr;
 class UnaryExpr;
@@ -59,11 +70,14 @@ public:
     virtual void visit(BinaryArithExpr* expr) = 0;
     virtual void visit(BinaryLogicalExpr* expr) = 0;
     virtual void visit(BoolLiteralExpr* expr) = 0;
+    virtual void visit(CallExpr* expr) = 0;
     virtual void visit(GroupingExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
     virtual void visit(UnaryExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
 };
+
+using FunCallArgs = std::vector<Expr*>;
 
 class Expr {
 public:
@@ -72,6 +86,7 @@ public:
         BinaryArith,
         BinaryLogical,
         BoolLiteral,
+        Call,
         Grouping,
         IntLiteral,
         Unary,
@@ -115,7 +130,8 @@ public:
     Expr* getDest() { return dest; }
     Expr* getSource() { return source; }
 
-    BPLATE_METHODS(Expr, Assign)
+    ACCEPT(Expr, Assign)
+    CLASSOF(Expr, Assign)
 };
 
 class BinaryArithExpr : public Expr {
@@ -144,7 +160,8 @@ public:
     Expr* getRight() { return right; }
     std::string& getOpString() { return opString; }
 
-    BPLATE_METHODS(Expr, BinaryArith)
+    ACCEPT(Expr, BinaryArith)
+    CLASSOF(Expr, BinaryArith)
 };
 
 class BinaryLogicalExpr : public Expr {
@@ -177,7 +194,8 @@ public:
     Expr* getRight() { return right; }
     std::string& getOpString() { return opString; }
 
-    BPLATE_METHODS(Expr, BinaryLogical)
+    ACCEPT(Expr, BinaryLogical)
+    CLASSOF(Expr, BinaryLogical)
 };
 
 class BoolLiteralExpr : public Expr {
@@ -190,7 +208,24 @@ public:
 
     bool getValue() const { return value; }
 
-    BPLATE_METHODS(Expr, BoolLiteral)
+    ACCEPT(Expr, BoolLiteral)
+    CLASSOF(Expr, BoolLiteral)
+};
+
+class CallExpr : public Expr {
+    llvm::StringRef funName;
+    FunCallArgs args;
+
+public:
+    CallExpr(llvm::StringRef funName, FunCallArgs&& args, llvm::SMLoc loc)
+        : Expr(ExprKind::Call, loc), funName(funName),
+          args(std::move(args)) {}
+
+    llvm::StringRef& getName() { return funName; }
+    FunCallArgs& getArgs() { return args; }
+
+    ACCEPT(Expr, Call)
+    CLASSOF(Expr, Call)
 };
 
 class GroupingExpr : public Expr {
@@ -202,7 +237,8 @@ public:
 
     Expr* getExpr() { return expr; }
 
-    BPLATE_METHODS(Expr, Grouping)
+    ACCEPT(Expr, Grouping)
+    CLASSOF(Expr, Grouping)
 };
 
 class IntLiteralExpr : public Expr {
@@ -217,7 +253,8 @@ public:
 
     llvm::APSInt& getValue() { return value; }
 
-    BPLATE_METHODS(Expr, IntLiteral)
+    ACCEPT(Expr, IntLiteral)
+    CLASSOF(Expr, IntLiteral)
 };
 
 class UnaryExpr : public Expr {
@@ -242,7 +279,8 @@ public:
     Expr* getExpr() { return expr; }
     std::string& getOpString() { return opString; }
 
-    BPLATE_METHODS(Expr, Unary)
+    ACCEPT(Expr, Unary)
+    CLASSOF(Expr, Unary)
 };
 
 class VarExpr : public Expr {
@@ -254,7 +292,8 @@ public:
 
     llvm::StringRef getName() { return name; }
 
-    BPLATE_METHODS(Expr, Var)
+    ACCEPT(Expr, Var)
+    CLASSOF(Expr, Var)
 
     // VarExpr is a valid assignment destination.
     Expr* makeAssignExpr(Expr* source) override {
@@ -264,6 +303,7 @@ public:
 
 // The following classes describe statement nodes of the AST.
 
+class Stmt;
 class ExprStmt;
 class FunStmt;
 class IfStmt;
@@ -271,6 +311,9 @@ class ModuleStmt;
 class PrintStmt;
 class ReturnStmt;
 class VarStmt;
+
+using Stmts = std::vector<Stmt*>;
+using FunDeclArgs = std::vector<VarStmt*>;
 
 class StmtVisitor {
 public:
@@ -320,7 +363,8 @@ public:
 
     Expr* getExpr() { return expr; }
 
-    BPLATE_METHODS(Stmt, Expr)
+    ACCEPT(Stmt, Expr)
+    CLASSOF(Stmt, Expr)
 };
 
 // Statement node describing a function definition.
@@ -328,17 +372,22 @@ public:
 class FunStmt : public Stmt,
                 public Decl {
     llvm::StringRef name;
+    FunDeclArgs args;
     Stmts body;
 
 public:
-    FunStmt(llvm::StringRef name, Stmts&& body, llvm::SMLoc loc)
-        : Stmt(StmtKind::Fun, loc), Decl(name),
-          name(name), body(std::move(body)) {}
+    FunStmt(llvm::StringRef name, Type* retType, FunDeclArgs&& args,
+            Stmts&& body, llvm::SMLoc loc)
+        : Stmt(StmtKind::Fun, loc), Decl(name, DeclKind::Fun, retType),
+          name(name), args(std::move(args)), body(std::move(body)) {}
 
     llvm::StringRef getName() { return name; }
+    FunDeclArgs& getArgs() { return args; }
     Stmts& getBody() { return body; }
 
-    BPLATE_METHODS(Stmt, Fun)
+    ACCEPT(Stmt, Fun)
+    CLASSOF(Stmt, Fun)
+    CLASSOF(Decl, Fun)
 };
 
 
@@ -359,7 +408,8 @@ public:
     Stmts& getThenStmts() { return thenStmts; }
     Stmts& getElseStmts() { return elseStmts; }
 
-    BPLATE_METHODS(Stmt, If)
+    ACCEPT(Stmt, If)
+    CLASSOF(Stmt, If)
 };
 
 
@@ -372,13 +422,15 @@ class ModuleStmt : public Stmt,
 
 public:
     ModuleStmt(llvm::StringRef name, Stmts&& body, llvm::SMLoc loc)
-        : Stmt(StmtKind::Module, loc), Decl(name),
+        : Stmt(StmtKind::Module, loc), Decl(name, DeclKind::Module),
           name(name), body(std::move(body)) {}
 
     llvm::StringRef getName() { return name; }
     Stmts& getBody() { return body; }
 
-    BPLATE_METHODS(Stmt, Module)
+    ACCEPT(Stmt, Module)
+    CLASSOF(Stmt, Module)
+    CLASSOF(Decl, Module)
 };
 
 // Statement node descibing a built-in PRINT function call.
@@ -391,7 +443,8 @@ public:
 
     Expr* getPrintExpr() { return printExpr; }
 
-    BPLATE_METHODS(Stmt, Print)
+    ACCEPT(Stmt, Print)
+    CLASSOF(Stmt, Print)
 };
 
 // Statement node describing a return statement.
@@ -404,7 +457,8 @@ public:
 
     Expr* getRetExpr() { return retExpr; }
 
-    BPLATE_METHODS(Stmt, Return)
+    ACCEPT(Stmt, Return)
+    CLASSOF(Stmt, Return)
 };
 
 // Statement node decribing a variable declaration/definition.
@@ -416,17 +470,22 @@ class VarStmt : public Stmt,
 public:
     VarStmt(llvm::StringRef name, Expr* initializer, Type* type,
             llvm::SMLoc loc)
-        : Stmt(StmtKind::Var, loc), Decl(name, type),
+        : Stmt(StmtKind::Var, loc), Decl(name, DeclKind::Var, type),
           name(name), initializer(initializer) {}
 
     llvm::StringRef getName() { return name; }
     Expr* getInitializer() { return initializer; }
 
-    BPLATE_METHODS(Stmt, Var)
+    void setInitializer(Expr* init) { this->initializer = init; }
+
+    ACCEPT(Stmt, Var)
+    CLASSOF(Stmt, Var)
+    CLASSOF(Decl, Var)
 };
 
 } // namespace mxrlang
 
-#undef BPLATE_METHODS
+#undef ACCEPT
+#undef CLASSOF
 
 #endif // TREE_H

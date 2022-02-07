@@ -8,7 +8,6 @@ namespace mxrlang {
 class ASTPrinter : public ExprVisitor,
                    public StmtVisitor {
     std::string result;
-    uint16_t currStmt = 1;
 
     // Controls the level of indentation during the print.
     // E.g. when entering IF stmt, push back a "\t", and pop it when
@@ -23,6 +22,7 @@ class ASTPrinter : public ExprVisitor,
     void visit(BinaryArithExpr* expr) override;
     void visit(BinaryLogicalExpr* expr) override;
     void visit(BoolLiteralExpr* expr) override;
+    void visit(CallExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
     void visit(UnaryExpr* expr) override;
@@ -37,9 +37,13 @@ class ASTPrinter : public ExprVisitor,
     void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;
 
-    // Helper functions which prints a binary operator.
+    // Helper function which prints a binary operator.
     template <typename BinExpr>
     void printBinary(std::string& op, BinExpr binExpr);
+
+    // Helper function which prints a variable declaration or a function
+    // parameter.
+    void printVar(VarStmt* stmt);
 
     // Helper function for evaluating an expression or a statement.
     template <typename T>

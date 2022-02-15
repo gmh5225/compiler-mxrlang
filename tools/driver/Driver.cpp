@@ -39,7 +39,7 @@ static const char* Head = "mxrlang - Mxrlang compiler";
 void printVersion(llvm::raw_ostream &OS) {
     OS << Head << " " << getMxrlangVersion() << "\n";
     OS << "  Default target: "
-     << llvm::sys::getDefaultTargetTriple() << "\n";
+       << llvm::sys::getDefaultTargetTriple() << "\n";
     std::string CPU(llvm::sys::getHostCPUName());
     OS << "  Host CPU: " << CPU << "\n";
     OS << "\n";
@@ -172,14 +172,14 @@ int main(int argc_, const char **argv_) {
         auto tokens = std::move(lexer.lex());
 
         if (diag.getNumErrs() > 0)
-            return 0;
+            continue;
 
         // Create and run the parser.
         Parser parser(tokens, diag);
         auto moduleDecl = parser.parse();
 
         if (diag.getNumErrs() > 0)
-            return 0;
+            continue;
 
         // Create and run the semantic checker.
         SemaCheck semaCheck(diag);
@@ -189,14 +189,18 @@ int main(int argc_, const char **argv_) {
         ASTPrinter astPrinter;
         astPrinter.run(moduleDecl);
 
+        if (diag.getNumErrs() > 0)
+            continue;
+
         // Generate code for this module.
-        if (moduleDecl && !diag.getNumErrs()) {
+        if (moduleDecl) {
             CodeGen codeGen(TM, fileName, diag);
             codeGen.run(moduleDecl);
             if (!emit(argv_[0], codeGen.getModule(), TM, fileName))
                 llvm::WithColor::error(llvm::errs(), argv_[0]) << "Error"
                     " writing output\n";
-        }
+        } else
+            continue;
     }
 
     return 0;

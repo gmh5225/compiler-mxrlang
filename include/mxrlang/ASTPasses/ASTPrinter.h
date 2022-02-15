@@ -7,16 +7,6 @@ namespace mxrlang {
 
 class ASTPrinter : public ExprVisitor,
                    public StmtVisitor {
-    std::string result;
-
-    // Controls the level of indentation during the print.
-    // E.g. when entering IF stmt, push back a "\t", and pop it when
-    // exiting the IF stmt.
-    std::string indent = "";
-
-    void increaseIndent() { indent.append("    "); }
-    void decreaseIndent() { indent.resize(indent.size() - 4); }
-
     // Expression visitor methods
     void visit(AssignExpr* expr) override;
     void visit(BinaryArithExpr* expr) override;
@@ -37,13 +27,24 @@ class ASTPrinter : public ExprVisitor,
     void visit(ReturnStmt* stmt) override;
     void visit(VarStmt* stmt) override;
 
+    // Controls the level of indentation during the print.
+    // E.g. when entering IF stmt, push back a "\t", and pop it when
+    // exiting the IF stmt.
+    std::string indent = "";
+
+    void increaseIndent() { indent.append("\t"); }
+    void decreaseIndent() { indent.resize(indent.size() - 1); }
+
     // Helper function which prints a binary operator.
     template <typename BinExpr>
     void printBinary(std::string& op, BinExpr binExpr);
 
     // Helper function which prints a variable declaration or a function
-    // parameter.
+    // declaration argument.
     void printVar(VarStmt* stmt);
+
+    // Wrapper arout llvm::outs().
+    llvm::raw_fd_ostream& out() { return llvm::outs(); }
 
     // Helper function for evaluating an expression or a statement.
     template <typename T>
@@ -55,9 +56,7 @@ public:
     // Runner.
     void run(ModuleStmt* moduleDecl) {
         llvm::outs() << "----------- AST dump --------------\n";
-        result.clear();
         evaluate(moduleDecl);
-        llvm::outs() << result;
         llvm::outs() << "-----------------------------------\n\n\n";
     }
 };

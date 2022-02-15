@@ -4,25 +4,30 @@
 
 using namespace mxrlang;
 
+// Helper function which prints a binary operator.
+// (binop type (leftExpr) (rightExpr))
 template <typename BinExpr>
 void ASTPrinter::printBinary(std::string& op, BinExpr binExpr) {
-    result += "(" + op + " " + binExpr->getType()->toString() + " ";
+    out() << "(" + op + " " + binExpr->getType()->toString() + " ";
     evaluate(binExpr->getLeft());
-    result += " ";
+    out() << " ";
     evaluate(binExpr->getRight());
-    result += ")";
+    out() << ")";
 }
 
+// Helper funcion which prints out a variable declaration or a function
+// declaration argument.
 void ASTPrinter::printVar(VarStmt* stmt) {
-    result += stmt->getName().str() + " " + stmt->getType()->toString();
+    out() << stmt->getName().str() + " " + stmt->getType()->toString();
 }
 
+// (= (dest) (source))
 void ASTPrinter::visit(AssignExpr* expr) {
-    result += "(= ";
+    out() << "(= ";
     evaluate(expr->getDest());
-    result += " ";
+    out() << " ";
     evaluate(expr->getSource());
-    result += ")";
+    out() << ")";
 }
 
 void ASTPrinter::visit(BinaryArithExpr* expr) {
@@ -33,81 +38,103 @@ void ASTPrinter::visit(BinaryLogicalExpr* expr) {
     printBinary(expr->getOpString(), expr);
 }
 
+// (true/false bool)
 void ASTPrinter::visit(BoolLiteralExpr* expr) {
     std::string value = expr->getValue() ? "true" : "false";
-    result += "(" + value + " " + expr->getType()->toString() + ")";
+    out() << "(" + value + " " + expr->getType()->toString() + ")";
 }
 
+// (call funName (arg1) (arg2) ... (argn))
 void ASTPrinter::visit(CallExpr* expr) {
-    result += "(call " + expr->getName().str();
-    for (auto arg : expr->getArgs()) {
-        result += " ";
+    out() << "(call " + expr->getName().str();
+    for (auto* arg : expr->getArgs()) {
+        out() << " ";
         evaluate(arg);
     }
-    result += ")";
+    out() << ")";
 }
 
+// (group (expr))
 void ASTPrinter::visit(GroupingExpr* expr) {
-    result += "(group " + expr->getType()->toString() + " ";
+    out() << "(group " + expr->getType()->toString() + " ";
     evaluate(expr->getExpr());
-    result += ")";
+    out() << ")";
 }
 
+// (intLiteral int)
 void ASTPrinter::visit(IntLiteralExpr* expr) {
+    // Convert APSInt to string.
     llvm::SmallString<30> literal;
     expr->getValue().toString(literal);
 
-    result += "(" + std::string(literal) + " " +
+    out() << "(" + std::string(literal) + " " +
               expr->getType()->toString() + ")";
 }
 
+// (op (expr))
 void ASTPrinter::visit(UnaryExpr* expr) {
-    result += "(" + expr->getOpString() + " ";
+    out() << "(" + expr->getOpString() + " ";
     evaluate(expr->getExpr());
-    result += ")";
+    out() << ")";
 }
 
+// (varName varType)
 void ASTPrinter::visit(VarExpr* expr) {
-    result += "(" + expr->getName().str() + " " +
-              expr->getType()->toString() + ")";
+    out() << "(" + expr->getName().str() + " " +
+             expr->getType()->toString() + ")";
 }
 
 void ASTPrinter::visit(ExprStmt* stmt) {
-    result += indent;
+    out() << indent;
     evaluate(stmt->getExpr());
-    result += "\n";
+    out() << "\n";
 }
 
+// (fun funName retType (arg1) (arg2))
+//     (stmt1)
+//     (stmt2)
+//     ...
+//     (stmtn)
 void ASTPrinter::visit(FunStmt* stmt) {
-    result += "(fun " + stmt->getName().str() + " " +
-              stmt->getType()->toString();
-    for (auto arg : stmt->getArgs()) {
-        result += " (";
+    out() << "(fun " + stmt->getName().str() + " " +
+             stmt->getType()->toString();
+    // Print out the function arguments (VarStmt type).
+    for (auto* arg : stmt->getArgs()) {
+        out() << " (";
         printVar(arg);
-        result += ")";
+        out() << ")";
     }
-    result += ")\n";
+    out() << ")\n";
 
+    // Print out the function body.
     increaseIndent();
-    for (auto st : stmt->getBody())
+    for (auto* st : stmt->getBody())
         evaluate(st);
     decreaseIndent();
 }
 
+// (if (conditionExpr))
+//     (stmt1)
+//     ...
+//     (stmtn)
+// (else)
+//     (stmt1)
+//     ...
+//     (stmtn)
 void ASTPrinter::visit(IfStmt* stmt) {
-    result += indent + "(if ";
+    out() << indent + "(if ";
     increaseIndent();
     evaluate(stmt->getCond());
-    result += ")\n";
+    out() << ")\n";
 
-    for (auto thenStmt : stmt->getThenStmts())
+    for (auto* thenStmt : stmt->getThenStmts())
         evaluate(thenStmt);
 
     if (!stmt->getElseStmts().empty()) {
         decreaseIndent();
-        result += indent + "(else)\n";
+        out() << indent + "(else)\n";
         increaseIndent();
-        for (auto elseStmt : stmt->getElseStmts())
+        for (auto* elseStmt : stmt->getElseStmts())
             evaluate(elseStmt);
     }
 
@@ -115,43 +142,43 @@ void ASTPrinter::visit(IfStmt* stmt) {
 }
 
 void ASTPrinter::visit(ModuleStmt* stmt) {
-    for (auto st : stmt->getBody()) {
-        assert(llvm::isa<FunStmt>(st) && "Currently only function declarations"
-               " allowed in module.");
+    for (auto* st : stmt->getBody()) {
+        assert(llvm::isa<FunStmt>(st) && "Currently only function"
+               "declarations allowed in module.");
 
         evaluate(st);
     }
 }
 
+// (print (printExpr))
 void ASTPrinter::visit(PrintStmt* stmt) {
-    result += indent + "(print ";
-
+    out() << indent + "(print ";
     evaluate(stmt->getPrintExpr());
-
-    result += ")\n";
+    out() << ")\n";
 }
 
+// (return (returnExpr))
 void ASTPrinter::visit(ReturnStmt* stmt) {
-    result += indent + "(return ";
+    out() << indent + "(return ";
 
     // If there is a return value, print it.
     if (stmt->getRetExpr())
         evaluate(stmt->getRetExpr());
 
-    result += ")\n";
+    out() << ")\n";
 }
 
+// (var varName varType (initializerExpr))
 void ASTPrinter::visit(VarStmt* stmt) {
     // Print the operation.
-    result += indent + "(var ";
-
+    out() << indent + "(var ";
     printVar(stmt);
 
     // If there is an initializer, print it.
     if (stmt->getInitializer()) {
-        result += " ";
+        out() << " ";
         evaluate(stmt->getInitializer());
     }
 
-    result += ")\n";
+    out() << ")\n";
 }

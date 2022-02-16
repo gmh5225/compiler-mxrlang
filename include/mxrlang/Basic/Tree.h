@@ -27,6 +27,8 @@
 namespace mxrlang {
 
 // Forward declare all classes.
+class Node;
+
 class Expr;
 class AssignExpr;
 class BinaryArithExpr;
@@ -73,8 +75,32 @@ using Stmts = std::vector<Stmt*>;
 using FunCallArgs = std::vector<Expr*>;
 using FunDeclArgs = std::vector<VarStmt*>;
 
-// The following class describes a declaration.
+// Node class describes a single AST node.
+class Node {
+public:
+    enum class NodeKind {
+        Decl,
+        Expr,
+        Stmt
+    };
 
+private:
+    NodeKind kind;
+    llvm::SMLoc loc;
+
+public:
+    Node(NodeKind kind, llvm::SMLoc loc)
+        : kind(kind), loc(loc) {}
+    virtual ~Node() = default;
+
+    // Pure virtual accept method of the visitor pattern.
+    virtual void accept(Visitor* visitor) = 0;
+
+    NodeKind getKind() const { return kind; }
+    llvm::SMLoc getLoc() const { return loc; }
+};
+
+// Decl class describes a declaration.
 class Decl {
 public:
     enum class DeclKind {
@@ -98,9 +124,8 @@ public:
     Type* getType() { return type; }
 };
 
-// The following classes describe expression nodes of the AST.
-
-class Expr {
+// Expr class describes expression nodes of the AST.
+class Expr : public Node {
 public:
     enum class ExprKind {
         Assign,
@@ -116,17 +141,12 @@ public:
 
 private:
     ExprKind kind;
-    llvm::SMLoc loc;
     // Every expression should have a type.
     Type* type;
 
 public:
     Expr(ExprKind kind, llvm::SMLoc loc, Type* type = Type::getNoneType())
-        : kind(kind), loc(loc), type(type) {}
-    virtual ~Expr() = default;
-
-    // Pure virtual accept method of the visitor pattern.
-    virtual void accept(Visitor* visitor) = 0;
+        : Node(NodeKind::Expr, loc), kind(kind), type(type) {}
 
     // Check whether this is a valid target of an assignment.
     // Can be overridden by valid targets (eg. Variable_expr) to return an
@@ -134,10 +154,36 @@ public:
     virtual Expr* makeAssignExpr(Expr* source) { return nullptr; }
 
     ExprKind getKind() const { return kind; }
-    llvm::SMLoc getLoc() const { return loc; }
     Type* getType() const { return type; }
 
     void setType(Type* type) { this->type = type; }
+
+    CLASSOF(Node, Expr)
+};
+
+// Stmt class describes statement nodes of the AST.
+class Stmt : public Node {
+public:
+    enum class StmtKind {
+        Expr,
+        Fun,
+        If,
+        Module,
+        Print,
+        Return,
+        Var
+    };
+
+private:
+    StmtKind kind;
+
+public:
+    Stmt(StmtKind kind, llvm::SMLoc loc)
+        : Node(NodeKind::Stmt, loc), kind(kind) {}
+
+    StmtKind getKind() const { return kind; }
+
+    CLASSOF(Node, Stmt)
 };
 
 class AssignExpr : public Expr {
@@ -324,33 +370,6 @@ public:
 
 // The following classes describe statement nodes of the AST.
 
-class Stmt {
-public:
-    enum class StmtKind {
-        Expr,
-        Fun,
-        If,
-        Module,
-        Print,
-        Return,
-        Var
-    };
-
-private:
-    StmtKind kind;
-    llvm::SMLoc loc;
-
-public:
-    Stmt(StmtKind kind, llvm::SMLoc loc) : kind(kind), loc(loc) {}
-    virtual ~Stmt() = default;
-
-    // Pure virtual accept method of the visitor pattern.
-    virtual void accept(Visitor* visitor) = 0;
-
-    StmtKind getKind() const { return kind; }
-    llvm::SMLoc getLoc() const { return loc; }
-};
-
 // Statement node describing an expression statement.
 class ExprStmt : public Stmt {
     Expr* expr;
@@ -366,7 +385,6 @@ public:
 };
 
 // Statement node describing a function definition.
-// Currently it only holds the top level "main" function.
 class FunStmt : public Stmt,
                 public Decl {
     llvm::StringRef name;

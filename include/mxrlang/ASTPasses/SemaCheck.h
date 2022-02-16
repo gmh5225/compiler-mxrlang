@@ -6,8 +6,7 @@
 
 namespace mxrlang {
 
-class SemaCheck : public ExprVisitor,
-                  public StmtVisitor {
+class SemaCheck : public Visitor {
     friend class ScopeMgr<SemaCheck, Decl>;
     using SemaCheckScopeMgr = ScopeMgr<SemaCheck, Decl>;
 

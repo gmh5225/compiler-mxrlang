@@ -12,8 +12,7 @@
 
 namespace mxrlang {
 
-class CodeGen : public ExprVisitor,
-                public StmtVisitor {
+class CodeGen : public Visitor {
     friend class ScopeMgr<CodeGen, llvm::Value>;
     using ValueScopeMgr = ScopeMgr<CodeGen, llvm::Value>;
 

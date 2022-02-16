@@ -14,8 +14,8 @@
 // and statement classes.
 
 // Generates boilerplate code for each class.
-#define ACCEPT(PARENT, KIND)                                    \
-    virtual void accept(PARENT##Visitor* visitor) override {    \
+#define ACCEPT()                                                \
+    virtual void accept(Visitor* visitor) override {            \
         visitor->visit(this);                                   \
     }                                                           \
 
@@ -25,6 +25,53 @@
     }                                                           \
 
 namespace mxrlang {
+
+// Forward declare all classes.
+class Expr;
+class AssignExpr;
+class BinaryArithExpr;
+class BinaryLogicalExpr;
+class BoolLiteralExpr;
+class CallExpr;
+class GroupingExpr;
+class IntLiteralExpr;
+class UnaryExpr;
+class VarExpr;
+
+class Stmt;
+class ExprStmt;
+class FunStmt;
+class IfStmt;
+class ModuleStmt;
+class PrintStmt;
+class ReturnStmt;
+class VarStmt;
+
+// Inherit from Visitor class in order to create an AST traversal class.
+class Visitor {
+public:
+    virtual void visit(AssignExpr* expr) = 0;
+    virtual void visit(BinaryArithExpr* expr) = 0;
+    virtual void visit(BinaryLogicalExpr* expr) = 0;
+    virtual void visit(BoolLiteralExpr* expr) = 0;
+    virtual void visit(CallExpr* expr) = 0;
+    virtual void visit(GroupingExpr* expr) = 0;
+    virtual void visit(IntLiteralExpr* expr) = 0;
+    virtual void visit(UnaryExpr* expr) = 0;
+    virtual void visit(VarExpr* expr) = 0;
+
+    virtual void visit(ExprStmt* stmt) = 0;
+    virtual void visit(FunStmt* stmt) = 0;
+    virtual void visit(IfStmt* stmt) = 0;
+    virtual void visit(ModuleStmt* stmt) = 0;
+    virtual void visit(PrintStmt* stmt) = 0;
+    virtual void visit(ReturnStmt* stmt) = 0;
+    virtual void visit(VarStmt* stmt) = 0;
+};
+
+using Stmts = std::vector<Stmt*>;
+using FunCallArgs = std::vector<Expr*>;
+using FunDeclArgs = std::vector<VarStmt*>;
 
 // The following class describes a declaration.
 
@@ -53,32 +100,6 @@ public:
 
 // The following classes describe expression nodes of the AST.
 
-class Expr;
-class AssignExpr;
-class BinaryArithExpr;
-class BinaryLogicalExpr;
-class BoolLiteralExpr;
-class CallExpr;
-class GroupingExpr;
-class IntLiteralExpr;
-class UnaryExpr;
-class VarExpr;
-
-class ExprVisitor {
-public:
-    virtual void visit(AssignExpr* expr) = 0;
-    virtual void visit(BinaryArithExpr* expr) = 0;
-    virtual void visit(BinaryLogicalExpr* expr) = 0;
-    virtual void visit(BoolLiteralExpr* expr) = 0;
-    virtual void visit(CallExpr* expr) = 0;
-    virtual void visit(GroupingExpr* expr) = 0;
-    virtual void visit(IntLiteralExpr* expr) = 0;
-    virtual void visit(UnaryExpr* expr) = 0;
-    virtual void visit(VarExpr* expr) = 0;
-};
-
-using FunCallArgs = std::vector<Expr*>;
-
 class Expr {
 public:
     enum class ExprKind {
@@ -105,7 +126,7 @@ public:
     virtual ~Expr() = default;
 
     // Pure virtual accept method of the visitor pattern.
-    virtual void accept(ExprVisitor* visitor) = 0;
+    virtual void accept(Visitor* visitor) = 0;
 
     // Check whether this is a valid target of an assignment.
     // Can be overridden by valid targets (eg. Variable_expr) to return an
@@ -130,7 +151,7 @@ public:
     Expr* getDest() { return dest; }
     Expr* getSource() { return source; }
 
-    ACCEPT(Expr, Assign)
+    ACCEPT()
     CLASSOF(Expr, Assign)
 };
 
@@ -160,7 +181,7 @@ public:
     Expr* getRight() { return right; }
     std::string& getOpString() { return opString; }
 
-    ACCEPT(Expr, BinaryArith)
+    ACCEPT()
     CLASSOF(Expr, BinaryArith)
 };
 
@@ -194,7 +215,7 @@ public:
     Expr* getRight() { return right; }
     std::string& getOpString() { return opString; }
 
-    ACCEPT(Expr, BinaryLogical)
+    ACCEPT()
     CLASSOF(Expr, BinaryLogical)
 };
 
@@ -208,7 +229,7 @@ public:
 
     bool getValue() const { return value; }
 
-    ACCEPT(Expr, BoolLiteral)
+    ACCEPT()
     CLASSOF(Expr, BoolLiteral)
 };
 
@@ -224,7 +245,7 @@ public:
     llvm::StringRef& getName() { return funName; }
     FunCallArgs& getArgs() { return args; }
 
-    ACCEPT(Expr, Call)
+    ACCEPT()
     CLASSOF(Expr, Call)
 };
 
@@ -237,7 +258,7 @@ public:
 
     Expr* getExpr() { return expr; }
 
-    ACCEPT(Expr, Grouping)
+    ACCEPT()
     CLASSOF(Expr, Grouping)
 };
 
@@ -253,7 +274,7 @@ public:
 
     llvm::APSInt& getValue() { return value; }
 
-    ACCEPT(Expr, IntLiteral)
+    ACCEPT()
     CLASSOF(Expr, IntLiteral)
 };
 
@@ -279,7 +300,7 @@ public:
     Expr* getExpr() { return expr; }
     std::string& getOpString() { return opString; }
 
-    ACCEPT(Expr, Unary)
+    ACCEPT()
     CLASSOF(Expr, Unary)
 };
 
@@ -292,7 +313,7 @@ public:
 
     llvm::StringRef getName() { return name; }
 
-    ACCEPT(Expr, Var)
+    ACCEPT()
     CLASSOF(Expr, Var)
 
     // VarExpr is a valid assignment destination.
@@ -302,29 +323,6 @@ public:
 };
 
 // The following classes describe statement nodes of the AST.
-
-class Stmt;
-class ExprStmt;
-class FunStmt;
-class IfStmt;
-class ModuleStmt;
-class PrintStmt;
-class ReturnStmt;
-class VarStmt;
-
-using Stmts = std::vector<Stmt*>;
-using FunDeclArgs = std::vector<VarStmt*>;
-
-class StmtVisitor {
-public:
-    virtual void visit(ExprStmt* stmt) = 0;
-    virtual void visit(FunStmt* stmt) = 0;
-    virtual void visit(IfStmt* stmt) = 0;
-    virtual void visit(ModuleStmt* stmt) = 0;
-    virtual void visit(PrintStmt* stmt) = 0;
-    virtual void visit(ReturnStmt* stmt) = 0;
-    virtual void visit(VarStmt* stmt) = 0;
-};
 
 class Stmt {
 public:
@@ -347,7 +345,7 @@ public:
     virtual ~Stmt() = default;
 
     // Pure virtual accept method of the visitor pattern.
-    virtual void accept(StmtVisitor* visitor) = 0;
+    virtual void accept(Visitor* visitor) = 0;
 
     StmtKind getKind() const { return kind; }
     llvm::SMLoc getLoc() const { return loc; }
@@ -363,7 +361,7 @@ public:
 
     Expr* getExpr() { return expr; }
 
-    ACCEPT(Stmt, Expr)
+    ACCEPT()
     CLASSOF(Stmt, Expr)
 };
 
@@ -385,7 +383,7 @@ public:
     FunDeclArgs& getArgs() { return args; }
     Stmts& getBody() { return body; }
 
-    ACCEPT(Stmt, Fun)
+    ACCEPT()
     CLASSOF(Stmt, Fun)
     CLASSOF(Decl, Fun)
 };
@@ -408,7 +406,7 @@ public:
     Stmts& getThenStmts() { return thenStmts; }
     Stmts& getElseStmts() { return elseStmts; }
 
-    ACCEPT(Stmt, If)
+    ACCEPT()
     CLASSOF(Stmt, If)
 };
 
@@ -428,7 +426,7 @@ public:
     llvm::StringRef getName() { return name; }
     Stmts& getBody() { return body; }
 
-    ACCEPT(Stmt, Module)
+    ACCEPT()
     CLASSOF(Stmt, Module)
     CLASSOF(Decl, Module)
 };
@@ -443,7 +441,7 @@ public:
 
     Expr* getPrintExpr() { return printExpr; }
 
-    ACCEPT(Stmt, Print)
+    ACCEPT()
     CLASSOF(Stmt, Print)
 };
 
@@ -457,7 +455,7 @@ public:
 
     Expr* getRetExpr() { return retExpr; }
 
-    ACCEPT(Stmt, Return)
+    ACCEPT()
     CLASSOF(Stmt, Return)
 };
 
@@ -478,7 +476,7 @@ public:
 
     void setInitializer(Expr* init) { this->initializer = init; }
 
-    ACCEPT(Stmt, Var)
+    ACCEPT()
     CLASSOF(Stmt, Var)
     CLASSOF(Decl, Var)
 };

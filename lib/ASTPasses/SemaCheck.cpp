@@ -67,8 +67,8 @@ void SemaCheck::visit(CallExpr* expr) {
         return;
     }
 
-    FunStmt* funDeclCast = llvm::dyn_cast<FunStmt>(funDecl);
-    assert(funDeclCast && "This must be a FunStmt.");
+    FunDecl* funDeclCast = llvm::dyn_cast<FunDecl>(funDecl);
+    assert(funDeclCast && "This must be a FunDecl.");
 
     // Function call and declaration must have a matching number of
     // arguments.
@@ -87,7 +87,7 @@ void SemaCheck::visit(CallExpr* expr) {
             diag.report(expr->getLoc(), DiagID::err_arg_type_mismatch);
     }
 
-    expr->setType(funDeclCast->getType());
+    expr->setType(funDeclCast->getRetType());
 }
 
 void SemaCheck::visit(GroupingExpr* expr) {
@@ -124,28 +124,12 @@ void SemaCheck::visit(VarExpr* expr) {
 
     // Match the type of the VarExpr with that of the actual variable
     // declaration.
-    expr->setType(varDecl->getType());
+    auto* varDeclCast = llvm::dyn_cast<VarDecl>(varDecl);
+    assert(varDeclCast);
+    expr->setType(varDeclCast->getType());
 }
 
 void SemaCheck::visit(ExprStmt* stmt) { evaluate(stmt->getExpr()); }
-
-void SemaCheck::visit(FunStmt* stmt) {
-    SemaCheckScopeMgr scopeMgr(*this);
-
-    // Reset the seenReturn flag at the beginning of each function.
-    seenReturn = false;
-
-    // Register the arguments.
-    for (auto arg : stmt->getArgs())
-        evaluate(arg);
-
-    for (auto st : stmt->getBody())
-        evaluate(st);
-
-    // Every function must have a return statement.
-    if (!seenReturn)
-        diag.report(stmt->getLoc(), DiagID::err_no_return);
-}
 
 void SemaCheck::visit(IfStmt* stmt) {
     evaluate(stmt->getCond());
@@ -155,32 +139,17 @@ void SemaCheck::visit(IfStmt* stmt) {
     // Use RAII to manage the lifetime of scopes.
     {
         SemaCheckScopeMgr ScopeMgr(*this);
-        for (auto* thenStmt : stmt->getThenStmts()) {
+        for (auto* thenStmt : stmt->getThenBody()) {
             evaluate(thenStmt);
         }
     }
 
     {
         SemaCheckScopeMgr ScopeMgr(*this);
-        for (auto* elseStmt : stmt->getElseStmts()) {
+        for (auto* elseStmt : stmt->getElseBody()) {
             evaluate(elseStmt);
         }
     }
-}
-
-void SemaCheck::visit(ModuleStmt* stmt) {
-    SemaCheckScopeMgr scopeMgr(*this);
-    // Forward declare all functions.
-    for (auto st : stmt->getBody()) {
-        auto* funStmt = llvm::dyn_cast<FunStmt>(st);
-
-        // Report an error if this is a redefinition.
-        if (!env->insert(funStmt, funStmt->getName()))
-            diag.report(funStmt->getLoc(), DiagID::err_fun_redefine);
-    }
-
-    for (auto st : stmt->getBody())
-        evaluate(st);
 }
 
 void SemaCheck::visit(PrintStmt* stmt) {
@@ -200,16 +169,50 @@ void SemaCheck::visit(ReturnStmt* stmt) {
         diag.report(stmt->getLoc(), DiagID::err_ret_type_mismatch);
 }
 
-void SemaCheck::visit(VarStmt* stmt) {
-    // Report an error if this is a redefinition.
-    if (!env->insert(stmt, stmt->getName()))
-        diag.report(stmt->getLoc(), DiagID::err_var_redefine);
+void SemaCheck::visit(FunDecl* decl) {
+    SemaCheckScopeMgr scopeMgr(*this);
 
-    if (stmt->getInitializer())
-        evaluate(stmt->getInitializer());
+    // Reset the seenReturn flag at the beginning of each function.
+    seenReturn = false;
+
+    // Register the arguments.
+    for (auto arg : decl->getArgs())
+        evaluate(arg);
+
+    for (auto st : decl->getBody())
+        evaluate(st);
+
+    // Every function must have a return statement.
+    if (!seenReturn)
+        diag.report(decl->getLoc(), DiagID::err_no_return);
+}
+
+void SemaCheck::visit(ModuleDecl* decl) {
+    SemaCheckScopeMgr scopeMgr(*this);
+    // Forward declare all functions.
+    for (auto dec : decl->getBody()) {
+        auto* funDecl = llvm::dyn_cast<FunDecl>(dec);
+        assert(funDecl && "Global variables not currently implemented.");
+
+        // Report an error if this is a redefinition.
+        if (!env->insert(funDecl, funDecl->getName()))
+            diag.report(funDecl->getLoc(), DiagID::err_fun_redefine);
+    }
+
+    for (auto dec : decl->getBody())
+        evaluate(dec);
+}
+
+void SemaCheck::visit(VarDecl* decl) {
+    // Report an error if this is a redefinition.
+    if (!env->insert(decl, decl->getName()))
+        diag.report(decl->getLoc(), DiagID::err_var_redefine);
+
+    if (decl->getInitializer())
+        evaluate(decl->getInitializer());
 
     // Initializer must have a compatible type.
-    if (stmt->getInitializer() &&
-        (stmt->getType() != stmt->getInitializer()->getType()))
-        diag.report(stmt->getLoc(), DiagID::err_incompatible_types);
+    if (decl->getInitializer() &&
+        (decl->getType() != decl->getInitializer()->getType()))
+        diag.report(decl->getLoc(), DiagID::err_incompatible_types);
 }

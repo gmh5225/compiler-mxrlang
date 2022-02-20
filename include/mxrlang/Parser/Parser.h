@@ -48,28 +48,29 @@ class Parser {
     // Report an error and throw an exception.
     ParserError error(const Token& tok, DiagID diagID, std::string args...);
 
-    // Helper which creates a VarStmt while parsing variable declarations,
+    // Helper which creates a VarDecl while parsing variable declarations,
     // or function declaration arguments.
-    VarStmt* parseSingleVar(bool isFunArg);
+    VarDecl* parseSingleVar(bool isFunArg);
 
     // Productions.
-    FunStmt* funDeclaration();
-    Stmt* declaration();
+    Node* declaration();
+    Decl* funDeclaration();
+    Decl* varDeclaration();
+
+    Stmt* statement();
     Stmt* exprStmt();
     Stmt* ifStmt();
     Stmt* printStmt();
     Stmt* returnStmt();
-    Stmt* statement();
-    Stmt* varDeclaration();
 
     Expr* expression();
     Expr* assignment();
-    Expr* addSub();
-    Expr* mulDiv();
     Expr* logicalOr();
     Expr* logicalAnd();
     Expr* equality();
     Expr* comparison();
+    Expr* addSub();
+    Expr* mulDiv();
     Expr* unary();
     Expr* primary();
     Expr* identifier();
@@ -79,7 +80,7 @@ public:
         : tokens(tokens), current(tokens.begin()), diag(diag) {}
 
     // Parse the token stream and return the root of the AST.
-    ModuleStmt* parse();
+    ModuleDecl* parse();
 };
 
 }

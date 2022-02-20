@@ -7,8 +7,8 @@ using namespace mxrlang;
 // Helper function which prints a binary operator.
 // (binop type (leftExpr) (rightExpr))
 template <typename BinExpr>
-void ASTPrinter::printBinary(std::string& op, BinExpr binExpr) {
-    out() << "(" + op + " " + binExpr->getType()->toString() + " ";
+void ASTPrinter::printBinary(const llvm::StringRef& op, BinExpr binExpr) {
+    out() << "(" + op.str() + " " + binExpr->getType()->toString() + " ";
     evaluate(binExpr->getLeft());
     out() << " ";
     evaluate(binExpr->getRight());
@@ -17,7 +17,7 @@ void ASTPrinter::printBinary(std::string& op, BinExpr binExpr) {
 
 // Helper funcion which prints out a variable declaration or a function
 // declaration argument.
-void ASTPrinter::printVar(VarStmt* stmt) {
+void ASTPrinter::printVar(VarDecl* stmt) {
     out() << stmt->getName().str() + " " + stmt->getType()->toString();
 }
 
@@ -73,7 +73,7 @@ void ASTPrinter::visit(IntLiteralExpr* expr) {
 
 // (op (expr))
 void ASTPrinter::visit(UnaryExpr* expr) {
-    out() << "(" + expr->getOpString() + " ";
+    out() << "(" + expr->getOpString().str() + " ";
     evaluate(expr->getExpr());
     out() << ")";
 }
@@ -90,29 +90,6 @@ void ASTPrinter::visit(ExprStmt* stmt) {
     out() << "\n";
 }
 
-// (fun funName retType (arg1) (arg2))
-//     (stmt1)
-//     (stmt2)
-//     ...
-//     (stmtn)
-void ASTPrinter::visit(FunStmt* stmt) {
-    out() << "(fun " + stmt->getName().str() + " " +
-             stmt->getType()->toString();
-    // Print out the function arguments (VarStmt type).
-    for (auto* arg : stmt->getArgs()) {
-        out() << " (";
-        printVar(arg);
-        out() << ")";
-    }
-    out() << ")\n";
-
-    // Print out the function body.
-    increaseIndent();
-    for (auto* st : stmt->getBody())
-        evaluate(st);
-    decreaseIndent();
-}
-
 // (if (conditionExpr))
 //     (stmt1)
 //     ...
@@ -127,27 +104,18 @@ void ASTPrinter::visit(IfStmt* stmt) {
     evaluate(stmt->getCond());
     out() << ")\n";
 
-    for (auto* thenStmt : stmt->getThenStmts())
+    for (auto* thenStmt : stmt->getThenBody())
         evaluate(thenStmt);
 
-    if (!stmt->getElseStmts().empty()) {
+    if (!stmt->getElseBody().empty()) {
         decreaseIndent();
         out() << indent + "(else)\n";
         increaseIndent();
-        for (auto* elseStmt : stmt->getElseStmts())
+        for (auto* elseStmt : stmt->getElseBody())
             evaluate(elseStmt);
     }
 
     decreaseIndent();
-}
-
-void ASTPrinter::visit(ModuleStmt* stmt) {
-    for (auto* st : stmt->getBody()) {
-        assert(llvm::isa<FunStmt>(st) && "Currently only function"
-               "declarations allowed in module.");
-
-        evaluate(st);
-    }
 }
 
 // (print (printExpr))
@@ -168,16 +136,48 @@ void ASTPrinter::visit(ReturnStmt* stmt) {
     out() << ")\n";
 }
 
+// (fun funName retType (arg1) (arg2))
+//     (stmt1)
+//     (stmt2)
+//     ...
+//     (stmtn)
+void ASTPrinter::visit(FunDecl* decl) {
+    out() << "(fun " + decl->getName().str() + " " +
+             decl->getRetType()->toString();
+    // Print out the function arguments (VarStmt type).
+    for (auto* arg : decl->getArgs()) {
+        out() << " (";
+        printVar(arg);
+        out() << ")";
+    }
+    out() << ")\n";
+
+    // Print out the function body.
+    increaseIndent();
+    for (auto* st : decl->getBody())
+        evaluate(st);
+    decreaseIndent();
+}
+
+void ASTPrinter::visit(ModuleDecl* decl) {
+    for (auto* dec : decl->getBody()) {
+        assert(llvm::isa<FunDecl>(dec) && "Currently only function"
+               "declarations allowed in module.");
+
+        evaluate(dec);
+    }
+}
+
 // (var varName varType (initializerExpr))
-void ASTPrinter::visit(VarStmt* stmt) {
+void ASTPrinter::visit(VarDecl* decl) {
     // Print the operation.
     out() << indent + "(var ";
-    printVar(stmt);
+    printVar(decl);
 
     // If there is an initializer, print it.
-    if (stmt->getInitializer()) {
+    if (decl->getInitializer()) {
         out() << " ";
-        evaluate(stmt->getInitializer());
+        evaluate(decl->getInitializer());
     }
 
     out() << ")\n";

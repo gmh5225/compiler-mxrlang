@@ -19,12 +19,14 @@ class ASTPrinter : public Visitor {
 
     // Statement visitor methods
     void visit(ExprStmt* stmt) override;
-    void visit(FunStmt* stmt) override;
     void visit(IfStmt* stmt) override;
-    void visit(ModuleStmt* stmt) override;
     void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
-    void visit(VarStmt* stmt) override;
+
+    // Declaration visitor methods
+    void visit(FunDecl* decl) override;
+    void visit(ModuleDecl* decl) override;
+    void visit(VarDecl* decl) override;
 
     // Controls the level of indentation during the print.
     // E.g. when entering IF stmt, push back a "\t", and pop it when
@@ -36,11 +38,11 @@ class ASTPrinter : public Visitor {
 
     // Helper function which prints a binary operator.
     template <typename BinExpr>
-    void printBinary(std::string& op, BinExpr binExpr);
+    void printBinary(const llvm::StringRef& op, BinExpr binExpr);
 
     // Helper function which prints a variable declaration or a function
     // declaration argument.
-    void printVar(VarStmt* stmt);
+    void printVar(VarDecl* stmt);
 
     // Wrapper arout llvm::outs().
     llvm::raw_fd_ostream& out() { return llvm::outs(); }
@@ -53,7 +55,7 @@ class ASTPrinter : public Visitor {
 
 public:
     // Runner.
-    void run(ModuleStmt* moduleDecl) {
+    void run(ModuleDecl* moduleDecl) {
         llvm::outs() << "----------- AST dump --------------\n";
         evaluate(moduleDecl);
         llvm::outs() << "-----------------------------------\n\n\n";

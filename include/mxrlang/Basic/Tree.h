@@ -1,4 +1,4 @@
-#ifndef TREE_H
+﻿#ifndef TREE_H
 #define TREE_H
 
 #include "Type.h"
@@ -42,12 +42,19 @@ class VarExpr;
 
 class Stmt;
 class ExprStmt;
-class FunStmt;
 class IfStmt;
-class ModuleStmt;
 class PrintStmt;
 class ReturnStmt;
-class VarStmt;
+
+class Decl;
+class FunDecl;
+class ModuleDecl;
+class VarDecl;
+
+using Nodes = std::vector<Node*>;
+using Decls = std::vector<Decl*>;
+using FunCallArgs = std::vector<Expr*>;
+using FunDeclArgs = std::vector<VarDecl*>;
 
 // Inherit from Visitor class in order to create an AST traversal class.
 class Visitor {
@@ -63,17 +70,14 @@ public:
     virtual void visit(VarExpr* expr) = 0;
 
     virtual void visit(ExprStmt* stmt) = 0;
-    virtual void visit(FunStmt* stmt) = 0;
     virtual void visit(IfStmt* stmt) = 0;
-    virtual void visit(ModuleStmt* stmt) = 0;
     virtual void visit(PrintStmt* stmt) = 0;
     virtual void visit(ReturnStmt* stmt) = 0;
-    virtual void visit(VarStmt* stmt) = 0;
-};
 
-using Stmts = std::vector<Stmt*>;
-using FunCallArgs = std::vector<Expr*>;
-using FunDeclArgs = std::vector<VarStmt*>;
+    virtual void visit(FunDecl* decl) = 0;
+    virtual void visit(ModuleDecl* decl) = 0;
+    virtual void visit(VarDecl* decl) = 0;
+};
 
 // Node class describes a single AST node.
 class Node {
@@ -86,6 +90,8 @@ public:
 
 private:
     NodeKind kind;
+    // Ties the node to the location in the source code. Useful for error
+    // reporting.
     llvm::SMLoc loc;
 
 public:
@@ -98,30 +104,6 @@ public:
 
     NodeKind getKind() const { return kind; }
     llvm::SMLoc getLoc() const { return loc; }
-};
-
-// Decl class describes a declaration.
-class Decl {
-public:
-    enum class DeclKind {
-        Fun,
-        Module,
-        Var
-    };
-
-private:
-    llvm::StringRef name;
-    DeclKind kind;
-    Type* type;
-
-public:
-    Decl(llvm::StringRef name, DeclKind kind,
-         Type* type = Type::getIntType())
-        : name(name), kind(kind), type(type) {}
-
-    llvm::StringRef getName() const { return name; }
-    DeclKind getKind() const { return kind; }
-    Type* getType() { return type; }
 };
 
 // Expr class describes expression nodes of the AST.
@@ -186,6 +168,31 @@ public:
     CLASSOF(Node, Stmt)
 };
 
+// Decl class describes a declaration node of the AST.
+class Decl : public Node {
+public:
+    enum class DeclKind {
+        Fun,
+        Module,
+        Var
+    };
+
+private:
+    DeclKind kind;
+    // Every declaration should have a name
+    llvm::StringRef name;
+
+public:
+    Decl(DeclKind kind, llvm::StringRef name, llvm::SMLoc loc)
+        : Node(NodeKind::Decl, loc), kind(kind), name(name) {}
+
+    DeclKind getKind() const { return kind; }
+    llvm::StringRef getName() const { return name; }
+
+    CLASSOF(Node, Decl)
+};
+
+// Describes an assignment (e.g. x := 5).
 class AssignExpr : public Expr {
     Expr* dest;
     Expr* source;
@@ -194,13 +201,14 @@ public:
     AssignExpr(Expr* dest, Expr* source, llvm::SMLoc loc)
         : Expr(ExprKind::Assign, loc), dest(dest), source(source) {}
 
-    Expr* getDest() { return dest; }
-    Expr* getSource() { return source; }
+    Expr* getDest() const { return dest; }
+    Expr* getSource() const { return source; }
 
     ACCEPT()
     CLASSOF(Expr, Assign)
 };
 
+// Describes a binary arithmetic expression (e.g. 5 * x).
 class BinaryArithExpr : public Expr {
 public:
     enum class BinaryArithExprKind {
@@ -214,23 +222,25 @@ private:
     BinaryArithExprKind binKind;
     Expr* left;
     Expr* right;
-    std::string opString;
+    // Useful for printing out the AST.
+    llvm::StringRef opString;
 
 public:
     BinaryArithExpr(BinaryArithExprKind binKind, Expr* left, Expr* right,
-                    std::string opString, llvm::SMLoc loc)
+                    llvm::StringRef opString, llvm::SMLoc loc)
         : Expr(ExprKind::BinaryArith, loc), binKind(binKind), left(left),
           right(right), opString(opString) {}
 
-    BinaryArithExprKind getBinaryKind() { return binKind; }
-    Expr* getLeft() { return left; }
-    Expr* getRight() { return right; }
-    std::string& getOpString() { return opString; }
+    BinaryArithExprKind getBinaryKind() const { return binKind; }
+    Expr* getLeft() const { return left; }
+    Expr* getRight() const { return right; }
+    const llvm::StringRef& getOpString() const { return opString; }
 
     ACCEPT()
     CLASSOF(Expr, BinaryArith)
 };
 
+// Describes a binary logical expression (e.g. x < 5).
 class BinaryLogicalExpr : public Expr {
 public:
     enum class BinaryLogicalExprKind {
@@ -248,23 +258,25 @@ private:
     BinaryLogicalExprKind binKind;
     Expr* left;
     Expr* right;
-    std::string opString;
+    // Useful for printing out the AST.
+    llvm::StringRef opString;
 
 public:
     BinaryLogicalExpr(BinaryLogicalExprKind binKind, Expr* left,
-                      Expr* right, std::string opString, llvm::SMLoc loc)
+                      Expr* right, llvm::StringRef opString, llvm::SMLoc loc)
         : Expr(ExprKind::BinaryLogical, loc), binKind(binKind), left(left),
           right(right), opString(opString) {}
 
-    BinaryLogicalExprKind getBinaryKind() { return binKind; }
-    Expr* getLeft() { return left; }
-    Expr* getRight() { return right; }
-    std::string& getOpString() { return opString; }
+    BinaryLogicalExprKind getBinaryKind() const { return binKind; }
+    Expr* getLeft() const { return left; }
+    Expr* getRight() const { return right; }
+    const llvm::StringRef& getOpString() const { return opString; }
 
     ACCEPT()
     CLASSOF(Expr, BinaryLogical)
 };
 
+// Descibes a BOOL type literal (e.g TRUE).
 class BoolLiteralExpr : public Expr {
     bool value;
 
@@ -279,6 +291,7 @@ public:
     CLASSOF(Expr, BoolLiteral)
 };
 
+// Describes a function call (e.g. fun(5, 6)).
 class CallExpr : public Expr {
     llvm::StringRef funName;
     FunCallArgs args;
@@ -288,13 +301,14 @@ public:
         : Expr(ExprKind::Call, loc), funName(funName),
           args(std::move(args)) {}
 
-    llvm::StringRef& getName() { return funName; }
+    const llvm::StringRef& getName() const { return funName; }
     FunCallArgs& getArgs() { return args; }
 
     ACCEPT()
     CLASSOF(Expr, Call)
 };
 
+// Describes an expression inside a parentheses (e.g. (5 + 6 * x)).
 class GroupingExpr : public Expr {
     Expr* expr;
 
@@ -302,12 +316,13 @@ public:
     GroupingExpr(Expr* expr, llvm::SMLoc loc)
         : Expr(ExprKind::Grouping, loc), expr(expr) {}
 
-    Expr* getExpr() { return expr; }
+    Expr* getExpr() const { return expr; }
 
     ACCEPT()
     CLASSOF(Expr, Grouping)
 };
 
+// Describes an INT type literal (e.g. 1264).
 class IntLiteralExpr : public Expr {
     llvm::APSInt value;
 
@@ -318,12 +333,13 @@ public:
         value.setIsSigned(true);
     }
 
-    llvm::APSInt& getValue() { return value; }
+    const llvm::APSInt& getValue() const { return value; }
 
     ACCEPT()
     CLASSOF(Expr, IntLiteral)
 };
 
+// Describes an unary expression (e.g. !x).
 class UnaryExpr : public Expr {
 public:
     enum class UnaryExprKind {
@@ -334,22 +350,24 @@ public:
 private:
     UnaryExprKind unaryKind;
     Expr* expr;
-    std::string opString;
+    // Useful for printing out the AST.
+    llvm::StringRef opString;
 
 public:
-    UnaryExpr(UnaryExprKind unaryKind, Expr* expr, std::string opString,
+    UnaryExpr(UnaryExprKind unaryKind, Expr* expr, llvm::StringRef opString,
               llvm::SMLoc loc)
         : Expr(ExprKind::Unary, loc), unaryKind(unaryKind), expr(expr),
           opString(opString) {}
 
-    UnaryExprKind getUnaryKind() { return unaryKind; }
-    Expr* getExpr() { return expr; }
-    std::string& getOpString() { return opString; }
+    UnaryExprKind getUnaryKind() const { return unaryKind; }
+    Expr* getExpr() const { return expr; }
+    const llvm::StringRef& getOpString() const { return opString; }
 
     ACCEPT()
     CLASSOF(Expr, Unary)
 };
 
+// Describes a variable acces (either to read or to write).
 class VarExpr : public Expr {
     llvm::StringRef name;
 
@@ -357,7 +375,7 @@ public:
     VarExpr(llvm::StringRef name, llvm::SMLoc loc)
         : Expr(ExprKind::Var, loc), name(name) {}
 
-    llvm::StringRef getName() { return name; }
+    const llvm::StringRef& getName() const { return name; }
 
     ACCEPT()
     CLASSOF(Expr, Var)
@@ -378,75 +396,31 @@ public:
     ExprStmt(Expr* expr, llvm::SMLoc loc)
         : Stmt(StmtKind::Expr, loc), expr(expr) {}
 
-    Expr* getExpr() { return expr; }
+    Expr* getExpr() const { return expr; }
 
     ACCEPT()
     CLASSOF(Stmt, Expr)
 };
 
-// Statement node describing a function definition.
-class FunStmt : public Stmt,
-                public Decl {
-    llvm::StringRef name;
-    FunDeclArgs args;
-    Stmts body;
-
-public:
-    FunStmt(llvm::StringRef name, Type* retType, FunDeclArgs&& args,
-            Stmts&& body, llvm::SMLoc loc)
-        : Stmt(StmtKind::Fun, loc), Decl(name, DeclKind::Fun, retType),
-          name(name), args(std::move(args)), body(std::move(body)) {}
-
-    llvm::StringRef getName() { return name; }
-    FunDeclArgs& getArgs() { return args; }
-    Stmts& getBody() { return body; }
-
-    ACCEPT()
-    CLASSOF(Stmt, Fun)
-    CLASSOF(Decl, Fun)
-};
-
-
 // Statement node describing an IF statement.
 class IfStmt : public Stmt {
     Expr* cond;
-    Stmts thenStmts;
-    Stmts elseStmts;
+    Nodes thenBody;
+    Nodes elseBody;
 
 public:
-    IfStmt(Expr* cond, Stmts&& thenStmts,
-           Stmts&& elseStmts, llvm::SMLoc loc)
+    IfStmt(Expr* cond, Nodes&& thenBody,
+           Nodes&& elseBody, llvm::SMLoc loc)
         : Stmt(StmtKind::If, loc), cond(cond),
-          thenStmts(std::move(thenStmts)),
-          elseStmts(std::move(elseStmts)) {}
+          thenBody(std::move(thenBody)),
+          elseBody(std::move(elseBody)) {}
 
-    Expr* getCond() { return cond; }
-    Stmts& getThenStmts() { return thenStmts; }
-    Stmts& getElseStmts() { return elseStmts; }
+    Expr* getCond() const { return cond; }
+    Nodes& getThenBody() { return thenBody; }
+    Nodes& getElseBody() { return elseBody; }
 
     ACCEPT()
     CLASSOF(Stmt, If)
-};
-
-
-// Statement node describing a module.
-// Currently only one module supported per program.
-class ModuleStmt : public Stmt,
-                   public Decl {
-    llvm::StringRef name;
-    Stmts body;
-
-public:
-    ModuleStmt(llvm::StringRef name, Stmts&& body, llvm::SMLoc loc)
-        : Stmt(StmtKind::Module, loc), Decl(name, DeclKind::Module),
-          name(name), body(std::move(body)) {}
-
-    llvm::StringRef getName() { return name; }
-    Stmts& getBody() { return body; }
-
-    ACCEPT()
-    CLASSOF(Stmt, Module)
-    CLASSOF(Decl, Module)
 };
 
 // Statement node descibing a built-in PRINT function call.
@@ -457,7 +431,7 @@ public:
     PrintStmt(Expr* printExpr, llvm::SMLoc loc)
         : Stmt(StmtKind::Print, loc) , printExpr(printExpr) {}
 
-    Expr* getPrintExpr() { return printExpr; }
+    Expr* getPrintExpr() const { return printExpr; }
 
     ACCEPT()
     CLASSOF(Stmt, Print)
@@ -471,31 +445,65 @@ public:
     ReturnStmt(Expr* retExpr, llvm::SMLoc loc)
         : Stmt(StmtKind::Return, loc), retExpr(retExpr) {}
 
-    Expr* getRetExpr() { return retExpr; }
+    Expr* getRetExpr() const { return retExpr; }
 
     ACCEPT()
     CLASSOF(Stmt, Return)
 };
 
-// Statement node decribing a variable declaration/definition.
-class VarStmt : public Stmt,
-                public Decl {
-    llvm::StringRef name;
+// The following classes describe statement nodes of the AST.
+
+// Declaration node describing a function definition.
+class FunDecl : public Decl {
+    Type* retType;
+    FunDeclArgs args;
+    Nodes body;
+
+public:
+    FunDecl(llvm::StringRef name, Type* retType, FunDeclArgs&& args,
+            Nodes&& body, llvm::SMLoc loc)
+        : Decl(DeclKind::Fun, name, loc), retType(retType), args(std::move(args)),
+          body(std::move(body)) {}
+
+    Type* getRetType() const { return retType; }
+    FunDeclArgs& getArgs() { return args; }
+    Nodes& getBody() { return body; }
+
+    ACCEPT()
+    CLASSOF(Decl, Fun)
+};
+
+// Declaration node describing a module.
+// Currently only one module supported per program.
+class ModuleDecl : public Decl {
+    Decls body;
+
+public:
+    ModuleDecl(llvm::StringRef name, Decls&& body, llvm::SMLoc loc)
+        : Decl(DeclKind::Module, name, loc), body(std::move(body)) {}
+
+    Decls& getBody() { return body; }
+
+    ACCEPT()
+    CLASSOF(Decl, Module)
+};
+
+// Declaration node decribing a variable declaration/definition.
+class VarDecl : public Decl {
+    Type* type;
     Expr* initializer;
 
 public:
-    VarStmt(llvm::StringRef name, Expr* initializer, Type* type,
+    VarDecl(llvm::StringRef name, Expr* initializer, Type* type,
             llvm::SMLoc loc)
-        : Stmt(StmtKind::Var, loc), Decl(name, DeclKind::Var, type),
-          name(name), initializer(initializer) {}
+        : Decl(DeclKind::Var, name, loc), type(type), initializer(initializer) {}
 
-    llvm::StringRef getName() { return name; }
+    Type* getType() const { return type; }
     Expr* getInitializer() { return initializer; }
 
     void setInitializer(Expr* init) { this->initializer = init; }
 
     ACCEPT()
-    CLASSOF(Stmt, Var)
     CLASSOF(Decl, Var)
 };
 

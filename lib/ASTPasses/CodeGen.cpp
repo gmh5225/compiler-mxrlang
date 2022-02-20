@@ -24,21 +24,21 @@ llvm::Type* CodeGen::convertTypeToLLVMType(Type* type) {
     llvm_unreachable("Unknown type.");
 }
 
-llvm::FunctionType* CodeGen::createFunctionType(FunStmt* stmt) {
-    auto* retTy = convertTypeToLLVMType(stmt->getType());
+llvm::FunctionType* CodeGen::createFunctionType(FunDecl* decl) {
+    auto* retTy = convertTypeToLLVMType(decl->getRetType());
 
     // Convert argument types to LLVM types.
     std::vector<llvm::Type*> args;
-    for (auto arg : stmt->getArgs())
+    for (auto arg : decl->getArgs())
         args.push_back(convertTypeToLLVMType(arg->getType()));
 
     return llvm::FunctionType::get(retTy, args, /*isVarArg*/ false);
 }
 
-llvm::Function *CodeGen::createFunction(FunStmt* stmt,
+llvm::Function *CodeGen::createFunction(FunDecl* decl,
                                         llvm::FunctionType* type) {
     return llvm::Function::Create(type, llvm::GlobalValue::ExternalLinkage,
-                                  stmt->getName(), module.get());
+                                  decl->getName(), module.get());
 }
 
 void CodeGen::visit(AssignExpr* expr) {
@@ -184,33 +184,6 @@ void CodeGen::visit(ExprStmt* stmt) {
     evaluate(stmt->getExpr());
 }
 
-void CodeGen::visit(FunStmt* stmt) {
-    llvm::Function* fun =
-        llvm::dyn_cast<llvm::Function>(env->find(stmt->getName()));
-    currFun = fun;
-
-    // Create the entry BB.
-    llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(ctx, "entry", fun);
-    setCurrBB(entryBB);
-
-    ValueScopeMgr scopeMgr(*this);
-    // Record the function arguments.
-    auto stmtArg = stmt->getArgs().begin();
-    auto llvmArg = fun->args().begin();
-    for (; stmtArg != stmt->getArgs().end(); ++stmtArg, ++llvmArg) {
-        // Create alloca for this argument and store it;
-        llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
-                                     currFun->getEntryBlock().begin());
-        auto* alloca = tmpBuilder.CreateAlloca(llvmArg->getType(),
-                                               0, (*stmtArg)->getName());
-        tmpBuilder.CreateStore(llvmArg, alloca);
-        env->insert(alloca, (*stmtArg)->getName());
-    }
-
-    for (auto funStmt : stmt->getBody())
-        evaluate(funStmt);
-}
-
 void CodeGen::visit(IfStmt* stmt) {
     // Evalute the condition Value.
     evaluate(stmt->getCond());
@@ -220,7 +193,7 @@ void CodeGen::visit(IfStmt* stmt) {
     llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(ctx, "then",
                                                         currFun);
     llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(ctx, "merge");
-    llvm::BasicBlock* elseBB = stmt->getElseStmts().empty() ?
+    llvm::BasicBlock* elseBB = stmt->getElseBody().empty() ?
         mergeBB : llvm::BasicBlock::Create(ctx, "else");
 
     // Create a conditional branch.
@@ -231,19 +204,19 @@ void CodeGen::visit(IfStmt* stmt) {
     // Use RAII to manage the lifetime of scopes.
     {
         ValueScopeMgr scopeMgr(*this);
-        for (auto thenStmt : stmt->getThenStmts())
+        for (auto thenStmt : stmt->getThenBody())
             evaluate(thenStmt);
     }
     builder.CreateBr(mergeBB);
 
     // Emit the ELSE block.
-    if (!stmt->getElseStmts().empty()) {
+    if (!stmt->getElseBody().empty()) {
         currFun->getBasicBlockList().push_back(elseBB);
         setCurrBB(elseBB);
         // Use RAII to manage the lifetime of scopes.
         {
             ValueScopeMgr scopeMgr(*this);
-            for (auto elseStmt : stmt->getElseStmts())
+            for (auto elseStmt : stmt->getElseBody())
                 evaluate(elseStmt);
         }
         builder.CreateBr(mergeBB);
@@ -252,26 +225,6 @@ void CodeGen::visit(IfStmt* stmt) {
     // Emit the merge block.
     currFun->getBasicBlockList().push_back(mergeBB);
     setCurrBB(mergeBB);
-}
-
-void CodeGen::visit(ModuleStmt* stmt) {
-    ValueScopeMgr scopeMgr(*this);
-    // Create a built-in PRINT function.
-    createPrintFunction();
-
-    // Forward declare all module functions.
-    for (auto funStmt : stmt->getBody()) {
-        assert(llvm::isa<FunStmt>(funStmt));
-        FunStmt* funStmtCast = llvm::dyn_cast<FunStmt>(funStmt);
-        auto* funTy = createFunctionType(funStmtCast);
-        auto* fun = createFunction(funStmtCast, funTy);
-
-        env->insert(fun, funStmtCast->getName());
-    }
-
-    // Now generate code for all module functions.
-    for (auto funStmt : stmt->getBody())
-        evaluate(funStmt);
 }
 
 void CodeGen::visit(PrintStmt* stmt) {
@@ -287,20 +240,67 @@ void CodeGen::visit(ReturnStmt* stmt) {
     builder.CreateRet(interResult);
 }
 
-void CodeGen::visit(VarStmt* stmt) {
+void CodeGen::visit(FunDecl* decl) {
+    llvm::Function* fun =
+        llvm::dyn_cast<llvm::Function>(env->find(decl->getName()));
+    currFun = fun;
+
+    // Create the entry BB.
+    llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(ctx, "entry", fun);
+    setCurrBB(entryBB);
+
+    ValueScopeMgr scopeMgr(*this);
+    // Record the function arguments.
+    auto declArg = decl->getArgs().begin();
+    auto llvmArg = fun->args().begin();
+    for (; declArg != decl->getArgs().end(); ++declArg, ++llvmArg) {
+        // Create alloca for this argument and store it;
+        llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
+                                     currFun->getEntryBlock().begin());
+        auto* alloca = tmpBuilder.CreateAlloca(llvmArg->getType(),
+                                               0, (*declArg)->getName());
+        tmpBuilder.CreateStore(llvmArg, alloca);
+        env->insert(alloca, (*declArg)->getName());
+    }
+
+    for (auto funDecl : decl->getBody())
+        evaluate(funDecl);
+}
+
+void CodeGen::visit(ModuleDecl* decl) {
+    ValueScopeMgr scopeMgr(*this);
+    // Create a built-in PRINT function.
+    createPrintFunction();
+
+    // Forward declare all module functions.
+    for (auto funDecl : decl->getBody()) {
+        assert(llvm::isa<FunDecl>(funDecl));
+        FunDecl* funDeclCast = llvm::dyn_cast<FunDecl>(funDecl);
+        auto* funTy = createFunctionType(funDeclCast);
+        auto* fun = createFunction(funDeclCast, funTy);
+
+        env->insert(fun, funDeclCast->getName());
+    }
+
+    // Now generate code for all module functions.
+    for (auto funDecl : decl->getBody())
+        evaluate(funDecl);
+}
+
+void CodeGen::visit(VarDecl* decl) {
     // Create an alloca for this variable in the entry BB of the current
     // function...
     llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
                                  currFun->getEntryBlock().begin());
     auto* alloca = tmpBuilder.CreateAlloca(
-        convertTypeToLLVMType(stmt->getType()), 0, stmt->getName());
+        convertTypeToLLVMType(decl->getType()), 0, decl->getName());
     // ... and register it in the scope menager.
-    env->insert(alloca, stmt->getName());
+    env->insert(alloca, decl->getName());
 
     // Generate the code for the variable initializer (if it exists),
     // and store the result in the alloca.
-    if (stmt->getInitializer()) {
-        evaluate(stmt->getInitializer());
+    if (decl->getInitializer()) {
+        evaluate(decl->getInitializer());
         builder.CreateStore(interResult, alloca);
     }
 }

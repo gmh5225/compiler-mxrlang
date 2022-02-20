@@ -57,12 +57,13 @@ class CodeGen : public Visitor {
 
     // Statement visitor methods
     void visit(ExprStmt* stmt) override;
-    void visit(FunStmt* stmt) override;
     void visit(IfStmt* stmt) override;
-    void visit(ModuleStmt* stmt) override;
     void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
-    void visit(VarStmt* stmt) override;
+
+    void visit(FunDecl* decl) override;
+    void visit(ModuleDecl* decl) override;
+    void visit(VarDecl* decl) override;
 
     // Helper function for evaluating an expression or a statement.
     template <typename T>
@@ -79,8 +80,8 @@ class CodeGen : public Visitor {
     // Convert mxrlang type to LLVM type.
     llvm::Type* convertTypeToLLVMType(Type* type);
 
-    llvm::FunctionType* createFunctionType(FunStmt* stmt);
-    llvm::Function* createFunction(FunStmt* stmt, llvm::FunctionType* type);
+    llvm::FunctionType* createFunctionType(FunDecl* decl);
+    llvm::Function* createFunction(FunDecl* decl, llvm::FunctionType* type);
 
     // Declare the built-in print function.
     void createPrintFunction();
@@ -96,7 +97,7 @@ public:
     llvm::Module* getModule() { return module.get(); }
 
     // Runner.
-    void run(ModuleStmt* moduleDecl) {
+    void run(ModuleDecl* moduleDecl) {
         evaluate(moduleDecl);
     }
 };

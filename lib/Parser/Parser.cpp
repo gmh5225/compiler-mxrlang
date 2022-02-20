@@ -95,7 +95,7 @@ Parser::ParserError Parser::error(const Token& tok, DiagID id,
 
 // Helper which creates a VarStmt while parsing variable declarations,
 // or function declaration arguments.
-VarStmt* Parser::parseSingleVar(bool isFunArg) {
+VarDecl* Parser::parseSingleVar(bool isFunArg) {
     // Parse the variable name.
     const Token& name = consume({TokenKind::identifier}, DiagID::err_expect,
                                 "identifer"s);
@@ -112,14 +112,27 @@ VarStmt* Parser::parseSingleVar(bool isFunArg) {
     if (!isFunArg && match(TokenKind::colonequal))
         initializer = expression();
 
-    return new VarStmt(name.getIdentifier(), initializer, varType,
+    return new VarDecl(name.getIdentifier(), initializer, varType,
                        name.getLocation());
 }
 
-FunStmt* Parser::funDeclaration() {
-    Stmts stmts;
-    Token& funToken = consume({TokenKind::kw_FUN}, DiagID::err_expect,
-                              "FUN"s);
+// FIXME: We currently allow parsing internal functions,
+// although they are not implemented.
+Node* Parser::declaration() {
+    try {
+        if (match(TokenKind::kw_VAR))
+            return varDeclaration();
+        else if (match(TokenKind::kw_FUN))
+            return funDeclaration();
+        return statement();
+    } catch (ParserError& e) {
+        synchronize();
+        return nullptr;
+    }
+}
+
+Decl* Parser::funDeclaration() {
+    Token& funToken = previous();
     Token& funName = consume({TokenKind::identifier}, DiagID::err_expect,
                              "identifier"s);
 
@@ -144,22 +157,20 @@ FunStmt* Parser::funDeclaration() {
                                    DiagID::err_expect, "type");
     Type* retType = Type::getTypeFromToken(typeTok);
 
+    // Parse the function body
+    Nodes body;
     while (!match(TokenKind::kw_NUF) && !isAtEnd())
-        stmts.emplace_back(declaration());
+        body.emplace_back(declaration());
 
-    return new FunStmt(funName.getIdentifier(), retType, std::move(args),
-                       std::move(stmts), funToken.getLocation());
+    return new FunDecl(funName.getIdentifier(), retType, std::move(args),
+                       std::move(body), funToken.getLocation());
 }
 
-Stmt* Parser::declaration() {
-    try {
-        if (match(TokenKind::kw_VAR))
-            return varDeclaration();
-        return statement();
-    } catch (ParserError& e) {
-        synchronize();
-        return nullptr;
-    }
+Decl* Parser::varDeclaration() {
+    auto* varDecl = parseSingleVar(false);
+    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
+
+    return varDecl;
 }
 
 Stmt* Parser::statement() {
@@ -173,10 +184,17 @@ Stmt* Parser::statement() {
         return exprStmt();
 }
 
+Stmt* Parser::exprStmt() {
+    Expr* expr = expression();
+    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
+
+    return new ExprStmt(expr, previous().getLocation());
+}
+
 Stmt* Parser::ifStmt() {
     // Parse the IF condition.
-    Stmts thenStmts;
-    Stmts elseStmts;
+    Nodes thenBody;
+    Nodes elseBody;
     Expr* cond = expression();
 
     consume({TokenKind::kw_THEN}, DiagID::err_expect, "THEN"s);
@@ -184,16 +202,16 @@ Stmt* Parser::ifStmt() {
     // Parse the statements in the THEN block.
     while (!(match(TokenKind::kw_ELSE) || match(TokenKind::kw_FI)) &&
            !isAtEnd())
-        thenStmts.push_back(declaration());
+        thenBody.push_back(declaration());
 
     // Parse the statements in the ELSE block.
     if (previous().getKind() == TokenKind::kw_ELSE) {
         while (!match(TokenKind::kw_FI) && !isAtEnd()) {
-            elseStmts.push_back(declaration());
+            elseBody.push_back(declaration());
         }
     }
 
-    return new IfStmt(cond, std::move(thenStmts), std::move(elseStmts),
+    return new IfStmt(cond, std::move(thenBody), std::move(elseBody),
                       previous().getLocation());
 }
 
@@ -212,20 +230,6 @@ Stmt* Parser::returnStmt() {
 
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new ReturnStmt(retExpr, previous().getLocation());
-}
-
-Stmt* Parser::varDeclaration() {
-    auto* varStmt = parseSingleVar(false);
-    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
-
-    return varStmt;
-}
-
-Stmt* Parser::exprStmt() {
-    Expr* expr = expression();
-    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
-
-    return new ExprStmt(expr, previous().getLocation());
 }
 
 Expr* Parser::expression() {
@@ -251,7 +255,7 @@ Expr* Parser::logicalOr() {
     auto* expr = logicalAnd();
 
     while (match(TokenKind::logicor)) {
-        auto opString = std::string(previous().getData());
+        auto opString = previous().getData();
         auto* right = logicalAnd();
         expr = new BinaryLogicalExpr(
             BinaryLogicalExpr::BinaryLogicalExprKind::Or, expr, right,
@@ -265,7 +269,7 @@ Expr* Parser::logicalAnd() {
     auto* expr = equality();
 
     while (match(TokenKind::logicand)) {
-        auto opString = std::string(previous().getData());
+        auto opString = previous().getData();
         auto* right = equality();
         expr = new BinaryLogicalExpr(
             BinaryLogicalExpr::BinaryLogicalExprKind::And, expr, right,
@@ -279,7 +283,7 @@ Expr* Parser::equality() {
     auto* expr = comparison();
 
     while (match(TokenKind::equal) || match(TokenKind::noteq)) {
-        auto opString = std::string(previous().getData());
+        auto opString = previous().getData();
         auto kind = previous().getKind() == TokenKind::equal ?
             BinaryLogicalExpr::BinaryLogicalExprKind::Eq :
             BinaryLogicalExpr::BinaryLogicalExprKind::NotEq;
@@ -299,7 +303,7 @@ Expr* Parser::comparison() {
            match(TokenKind::greatereq) ||
            match(TokenKind::less) ||
            match(TokenKind::lesseq)) {
-        auto opString = std::string(previous().getData());
+        auto opString = previous().getData();
         BinaryLogicalExpr::BinaryLogicalExprKind kind;
         switch (previous().getKind()) {
         case TokenKind::greater:
@@ -330,7 +334,7 @@ Expr* Parser::addSub() {
     auto* expr = mulDiv();
 
     while (match(TokenKind::plus) || match(TokenKind::minus)) {
-        auto opString = std::string(previous().getData());
+        auto opString = previous().getData();
         auto kind = previous().getKind() == TokenKind::plus ?
             BinaryArithExpr::BinaryArithExprKind::Add :
             BinaryArithExpr::BinaryArithExprKind::Sub;
@@ -347,7 +351,7 @@ Expr* Parser::mulDiv() {
     auto* expr = unary();
 
     while (match(TokenKind::star) || match(TokenKind::slash)) {
-        auto opString = std::string(previous().getData());
+        auto opString = previous().getData();
         auto kind = previous().getKind() == TokenKind::star ?
             BinaryArithExpr::BinaryArithExprKind::Mul :
             BinaryArithExpr::BinaryArithExprKind::Div;
@@ -362,7 +366,7 @@ Expr* Parser::mulDiv() {
 
 Expr* Parser::unary() {
     if (match(TokenKind::bang) || match(TokenKind::minus)) {
-        auto opString = std::string(previous().getData());
+        auto opString = previous().getData();
         auto kind = previous().getKind() == TokenKind::bang ?
             UnaryExpr::UnaryExprKind::NegLogic :
             UnaryExpr::UnaryExprKind::NegArith;
@@ -420,21 +424,24 @@ Expr* Parser::identifier() {
 }
 
 // Parse the token stream and return the root of the AST.
-ModuleStmt* Parser::parse() {
+ModuleDecl* Parser::parse() {
     Token& moduleToken = peek();
-    Stmts funStmts;
+    Decls decls;
 
     // Parse all functions inside the file.
+    //
+    // FIXME: We are currently matching global variables, even though they
+    // are not implemented.
     while (!isAtEnd()) {
-        // Catch any errors when parsing module functions.
-        try {
-            funStmts.push_back(funDeclaration());
-        } catch (ParserError& e) {
+        auto* decl = declaration();
+        if (!llvm::isa<Decl>(decl)) {
+            (void)error(peek(), DiagID::err_expect, "declaration");
             return nullptr;
         }
+        decls.push_back(llvm::dyn_cast<Decl>(decl));
     }
 
-    ModuleStmt* moduleStmt = new ModuleStmt("main", std::move(funStmts),
+    ModuleDecl* moduleStmt = new ModuleDecl("main", std::move(decls),
                                             moduleToken.getLocation());
     return moduleStmt;
 }

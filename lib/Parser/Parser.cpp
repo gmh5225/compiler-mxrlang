@@ -284,9 +284,17 @@ Expr* Parser::equality() {
 
     while (match(TokenKind::equal) || match(TokenKind::noteq)) {
         auto opString = previous().getData();
-        auto kind = previous().getKind() == TokenKind::equal ?
-            BinaryLogicalExpr::BinaryLogicalExprKind::Eq :
-            BinaryLogicalExpr::BinaryLogicalExprKind::NotEq;
+        BinaryLogicalExpr::BinaryLogicalExprKind kind;
+        switch (previous().getKind()) {
+        case TokenKind::equal:
+            kind = BinaryLogicalExpr::BinaryLogicalExprKind::Eq;
+            break;
+        case TokenKind::noteq:
+            kind = BinaryLogicalExpr::BinaryLogicalExprKind::NotEq;
+            break;
+        default:
+            llvm_unreachable("Wrong binary comparison operator.");
+        }
 
         auto* right = comparison();
         expr = new BinaryLogicalExpr(kind, expr, right, opString,
@@ -319,7 +327,7 @@ Expr* Parser::comparison() {
             kind = BinaryLogicalExpr::BinaryLogicalExprKind::LessEq;
             break;
         default:
-            llvm_unreachable("Wrong binary logical operator.");
+            llvm_unreachable("Wrong binary comparison operator.");
         }
 
         auto* right = addSub();
@@ -335,9 +343,17 @@ Expr* Parser::addSub() {
 
     while (match(TokenKind::plus) || match(TokenKind::minus)) {
         auto opString = previous().getData();
-        auto kind = previous().getKind() == TokenKind::plus ?
-            BinaryArithExpr::BinaryArithExprKind::Add :
-            BinaryArithExpr::BinaryArithExprKind::Sub;
+        BinaryArithExpr::BinaryArithExprKind kind;
+        switch (previous().getKind()) {
+        case TokenKind::plus:
+            kind = BinaryArithExpr::BinaryArithExprKind::Add;
+            break;
+        case TokenKind::minus:
+            kind = BinaryArithExpr::BinaryArithExprKind::Sub;
+            break;
+        default:
+            llvm_unreachable("Wrong binary arithmetic operator.");
+        }
 
         auto* right = mulDiv();
         expr = new BinaryArithExpr(kind, expr, right, opString,
@@ -352,9 +368,17 @@ Expr* Parser::mulDiv() {
 
     while (match(TokenKind::star) || match(TokenKind::slash)) {
         auto opString = previous().getData();
-        auto kind = previous().getKind() == TokenKind::star ?
-            BinaryArithExpr::BinaryArithExprKind::Mul :
-            BinaryArithExpr::BinaryArithExprKind::Div;
+        BinaryArithExpr::BinaryArithExprKind kind;
+        switch (previous().getKind()) {
+        case TokenKind::star:
+            kind = BinaryArithExpr::BinaryArithExprKind::Mul;
+            break;
+        case TokenKind::slash:
+            kind = BinaryArithExpr::BinaryArithExprKind::Div;
+            break;
+        default:
+            llvm_unreachable("Wrong binary arithmetic operator.");
+        }
 
         auto* right = unary();
         expr = new BinaryArithExpr(kind, expr, right, opString,
@@ -367,9 +391,17 @@ Expr* Parser::mulDiv() {
 Expr* Parser::unary() {
     if (match(TokenKind::bang) || match(TokenKind::minus)) {
         auto opString = previous().getData();
-        auto kind = previous().getKind() == TokenKind::bang ?
-            UnaryExpr::UnaryExprKind::NegLogic :
-            UnaryExpr::UnaryExprKind::NegArith;
+        UnaryExpr::UnaryExprKind kind;
+        switch (previous().getKind()) {
+        case TokenKind::bang:
+            kind = UnaryExpr::UnaryExprKind::NegLogic;
+            break;
+        case TokenKind::minus:
+            kind = UnaryExpr::UnaryExprKind::NegArith;
+            break;
+        default:
+            llvm_unreachable("Wring unary operator.");
+        }
 
         auto* expr = primary();
         return new UnaryExpr(kind, expr, opString,

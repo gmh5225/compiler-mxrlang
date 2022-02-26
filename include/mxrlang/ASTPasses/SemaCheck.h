@@ -17,6 +17,9 @@ class SemaCheck : public Visitor {
     // Flags whether we've seen a return statement in a function.
     bool seenReturn = false;
 
+    // Currently checked function.
+    FunDecl* currFun = nullptr;
+
     // Expression visitor methods
     void visit(AssignExpr* expr) override;
     void visit(BinaryArithExpr* expr) override;

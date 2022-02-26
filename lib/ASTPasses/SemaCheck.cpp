@@ -72,8 +72,10 @@ void SemaCheck::visit(CallExpr* expr) {
 
     // Function call and declaration must have a matching number of
     // arguments.
-    if (funDeclCast->getArgs().size() != expr->getArgs().size())
+    if (funDeclCast->getArgs().size() != expr->getArgs().size()) {
         diag.report(expr->getLoc(), DiagID::err_arg_num_mismatch);
+        return;
+    }
 
     // Argument types must match.
     for (size_t argNum = 0; argNum < expr->getArgs().size(); argNum++) {
@@ -125,7 +127,7 @@ void SemaCheck::visit(VarExpr* expr) {
     // Match the type of the VarExpr with that of the actual variable
     // declaration.
     auto* varDeclCast = llvm::dyn_cast<VarDecl>(varDecl);
-    assert(varDeclCast);
+    assert(varDeclCast && "This must be a VarDecl");
     expr->setType(varDeclCast->getType());
 }
 
@@ -164,13 +166,15 @@ void SemaCheck::visit(ReturnStmt* stmt) {
     else
         evaluate(stmt->getRetExpr());
 
-    // FIXME: Currently only INT expected as return type.
-    if (stmt->getRetExpr()->getType() != Type::getIntType())
+    assert(stmt->getRetExpr()->getType() != Type::getNoneType());
+    if (currFun->getRetType() != stmt->getRetExpr()->getType())
         diag.report(stmt->getLoc(), DiagID::err_ret_type_mismatch);
 }
 
 void SemaCheck::visit(FunDecl* decl) {
     SemaCheckScopeMgr scopeMgr(*this);
+
+    currFun = decl;
 
     // Reset the seenReturn flag at the beginning of each function.
     seenReturn = false;
@@ -204,12 +208,13 @@ void SemaCheck::visit(ModuleDecl* decl) {
 }
 
 void SemaCheck::visit(VarDecl* decl) {
+    // First check the initializer, in case the variable is referencing itself.
+    if (decl->getInitializer())
+        evaluate(decl->getInitializer());
+
     // Report an error if this is a redefinition.
     if (!env->insert(decl, decl->getName()))
         diag.report(decl->getLoc(), DiagID::err_var_redefine);
-
-    if (decl->getInitializer())
-        evaluate(decl->getInitializer());
 
     // Initializer must have a compatible type.
     if (decl->getInitializer() &&

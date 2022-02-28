@@ -492,16 +492,21 @@ public:
 class VarDecl : public Decl {
     Type* type;
     Expr* initializer;
+    // Whether this is a global variable declaration.
+    bool global;
 
 public:
-    VarDecl(llvm::StringRef name, Expr* initializer, Type* type,
+    VarDecl(llvm::StringRef name, Expr* initializer, Type* type, bool global,
             llvm::SMLoc loc)
-        : Decl(DeclKind::Var, name, loc), type(type), initializer(initializer) {}
+        : Decl(DeclKind::Var, name, loc), type(type), initializer(initializer),
+          global(global) {}
 
     Type* getType() const { return type; }
     Expr* getInitializer() { return initializer; }
+    bool isGlobal() const { return global; }
 
     void setInitializer(Expr* init) { this->initializer = init; }
+    void setGlobal(bool global) { this->global = global; }
 
     ACCEPT()
     CLASSOF(Decl, Var)

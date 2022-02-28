@@ -272,35 +272,57 @@ void CodeGen::visit(ModuleDecl* decl) {
     // Create a built-in PRINT function.
     createPrintFunction();
 
-    // Forward declare all module functions.
-    for (auto funDecl : decl->getBody()) {
-        assert(llvm::isa<FunDecl>(funDecl));
-        FunDecl* funDeclCast = llvm::dyn_cast<FunDecl>(funDecl);
-        auto* funTy = createFunctionType(funDeclCast);
-        auto* fun = createFunction(funDeclCast, funTy);
-
-        env->insert(fun, funDeclCast->getName());
+    for (auto dec : decl->getBody()) {
+        // Forward declare all module functions.
+        if (auto* funDecl = llvm::dyn_cast<FunDecl>(dec)) {
+            auto* funTy = createFunctionType(funDecl);
+            auto* fun = createFunction(funDecl, funTy);
+            env->insert(fun, funDecl->getName());
+        // Emit all global variables.
+        } else if (llvm::isa<VarDecl>(dec))
+            evaluate(dec);
+        else
+            llvm_unreachable("Unknown declaration inside a module.");
     }
 
     // Now generate code for all module functions.
-    for (auto funDecl : decl->getBody())
-        evaluate(funDecl);
+    for (auto dec : decl->getBody()) {
+        if (llvm::isa<FunDecl>(dec))
+            evaluate(dec);
+    }
 }
 
 void CodeGen::visit(VarDecl* decl) {
-    // Create an alloca for this variable in the entry BB of the current
-    // function...
-    llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
-                                 currFun->getEntryBlock().begin());
-    auto* alloca = tmpBuilder.CreateAlloca(
-        convertTypeToLLVMType(decl->getType()), 0, decl->getName());
-    // ... and register it in the scope menager.
-    env->insert(alloca, decl->getName());
+    if (decl->isGlobal()) {
+        // Create a global variable, set the linkage to private...
+        module->getOrInsertGlobal(decl->getName(),
+                                  convertTypeToLLVMType(decl->getType()));
+        auto* globalVar = module->getNamedGlobal(decl->getName());
+        globalVar->setLinkage(llvm::GlobalValue::PrivateLinkage);
+        // ... and register it in the scope manager.
+        env->insert(globalVar, decl->getName());
 
-    // Generate the code for the variable initializer (if it exists),
-    // and store the result in the alloca.
-    if (decl->getInitializer()) {
-        evaluate(decl->getInitializer());
-        builder.CreateStore(interResult, alloca);
+        // If the initializer exists, it will be either an INT or a BOOL literal.
+        // It's safe to to dyn_cast here because the check is done in SemaCheck.
+        if (decl->getInitializer()) {
+            evaluate(decl->getInitializer());
+            globalVar->setInitializer(llvm::dyn_cast<llvm::Constant>(interResult));
+        }
+    } else {
+        // Create an alloca for this variable in the entry BB of the current
+        // function...
+        llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
+                                     currFun->getEntryBlock().begin());
+        auto* alloca = tmpBuilder.CreateAlloca(
+            convertTypeToLLVMType(decl->getType()), 0, decl->getName());
+        // ... and register it in the scope menager.
+        env->insert(alloca, decl->getName());
+
+        // Generate the code for the variable initializer (if it exists),
+        // and store the result in the alloca.
+        if (decl->getInitializer()) {
+            evaluate(decl->getInitializer());
+            builder.CreateStore(interResult, alloca);
+        }
     }
 }

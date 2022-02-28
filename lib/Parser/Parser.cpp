@@ -113,7 +113,7 @@ VarDecl* Parser::parseSingleVar(bool isFunArg) {
         initializer = expression();
 
     return new VarDecl(name.getIdentifier(), initializer, varType,
-                       name.getLocation());
+                       /* global= */false, name.getLocation());
 }
 
 // FIXME: We currently allow parsing internal functions,
@@ -460,17 +460,17 @@ ModuleDecl* Parser::parse() {
     Token& moduleToken = peek();
     Decls decls;
 
-    // Parse all functions inside the file.
-    //
-    // FIXME: We are currently matching global variables, even though they
-    // are not implemented.
     while (!isAtEnd()) {
-        auto* decl = declaration();
-        if (!llvm::isa<Decl>(decl)) {
+        auto* decl = llvm::dyn_cast<Decl>(declaration());
+        if (!decl) {
             (void)error(peek(), DiagID::err_expect, "declaration");
             return nullptr;
         }
-        decls.push_back(llvm::dyn_cast<Decl>(decl));
+        decls.push_back(decl);
+
+        // This is a global variable, so mark it as global.
+        if (auto* globalVarDecl = llvm::dyn_cast<VarDecl>(decl))
+            globalVarDecl->setGlobal(true);
     }
 
     ModuleDecl* moduleStmt = new ModuleDecl("main", std::move(decls),

@@ -161,9 +161,6 @@ void ASTPrinter::visit(FunDecl* decl) {
 
 void ASTPrinter::visit(ModuleDecl* decl) {
     for (auto* dec : decl->getBody()) {
-        assert(llvm::isa<FunDecl>(dec) && "Currently only function"
-               "declarations allowed in module.");
-
         evaluate(dec);
     }
 }

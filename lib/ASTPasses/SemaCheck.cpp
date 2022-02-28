@@ -193,14 +193,14 @@ void SemaCheck::visit(FunDecl* decl) {
 
 void SemaCheck::visit(ModuleDecl* decl) {
     SemaCheckScopeMgr scopeMgr(*this);
-    // Forward declare all functions.
+    // Forward declare everything.
     for (auto dec : decl->getBody()) {
-        auto* funDecl = llvm::dyn_cast<FunDecl>(dec);
-        assert(funDecl && "Global variables not currently implemented.");
-
         // Report an error if this is a redefinition.
-        if (!env->insert(funDecl, funDecl->getName()))
-            diag.report(funDecl->getLoc(), DiagID::err_fun_redefine);
+        if (!env->insert(dec, dec->getName())) {
+            DiagID errId = llvm::isa<FunDecl>(dec) ? DiagID::err_fun_redefine :
+                                                     DiagID::err_var_redefine;
+            diag.report(dec->getLoc(), errId);
+        }
     }
 
     for (auto dec : decl->getBody())
@@ -213,11 +213,27 @@ void SemaCheck::visit(VarDecl* decl) {
         evaluate(decl->getInitializer());
 
     // Report an error if this is a redefinition.
-    if (!env->insert(decl, decl->getName()))
-        diag.report(decl->getLoc(), DiagID::err_var_redefine);
+    // Only do this for locals, as globals will be forward declared at the
+    // module level.
+    if (!decl->isGlobal()) {
+        if (!env->insert(decl, decl->getName()))
+            diag.report(decl->getLoc(), DiagID::err_var_redefine);
+    }
 
     // Initializer must have a compatible type.
     if (decl->getInitializer() &&
         (decl->getType() != decl->getInitializer()->getType()))
         diag.report(decl->getLoc(), DiagID::err_incompatible_types);
+
+    // If this is a global variable, the initializer must be an INT or BOOL
+    // literal.
+    if (decl->isGlobal()) {
+        if (decl->getType() == Type::getIntType() &&
+            !llvm::isa<IntLiteralExpr>(decl->getInitializer()))
+            diag.report(decl->getLoc(), DiagID::err_global_init_not_lit);
+
+        if (decl->getType() == Type::getBoolType() &&
+            !llvm::isa<BoolLiteralExpr>(decl->getInitializer()))
+            diag.report(decl->getLoc(), DiagID::err_global_init_not_lit);
+    }
 }

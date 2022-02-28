@@ -23,5 +23,6 @@ DIAG(err_arith_type, Error, "Arithmetic operators expect operands of INT type.")
 DIAG(err_logic_type, Error, "Logical operators expect operands of BOOL type.")
 DIAG(err_arg_num_mismatch, Error, "Number of function call and declaration arguments mismatching.")
 DIAG(err_arg_type_mismatch, Error, "Type of function call and declaration argument mismatching.")
+DIAG(err_global_init_not_lit, Error, "Initializer of the global variable must be of corresponding literal type.")
 
 #undef DIAG

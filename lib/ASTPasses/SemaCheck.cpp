@@ -141,16 +141,14 @@ void SemaCheck::visit(IfStmt* stmt) {
     // Use RAII to manage the lifetime of scopes.
     {
         SemaCheckScopeMgr ScopeMgr(*this);
-        for (auto* thenStmt : stmt->getThenBody()) {
+        for (auto* thenStmt : stmt->getThenBody())
             evaluate(thenStmt);
-        }
     }
 
     {
         SemaCheckScopeMgr ScopeMgr(*this);
-        for (auto* elseStmt : stmt->getElseBody()) {
+        for (auto* elseStmt : stmt->getElseBody())
             evaluate(elseStmt);
-        }
     }
 }
 
@@ -169,6 +167,19 @@ void SemaCheck::visit(ReturnStmt* stmt) {
     assert(stmt->getRetExpr()->getType() != Type::getNoneType());
     if (currFun->getRetType() != stmt->getRetExpr()->getType())
         diag.report(stmt->getLoc(), DiagID::err_ret_type_mismatch);
+}
+
+void SemaCheck::visit(UntilStmt* stmt) {
+    evaluate(stmt->getCond());
+    if (!(stmt->getCond()->getType() == Type::getBoolType()))
+        diag.report(stmt->getLoc(), DiagID::err_cond_not_bool);
+
+    // Use RAII to manage the lifetime of scopes.
+    {
+        SemaCheckScopeMgr ScopeMgr(*this);
+        for (auto* s : stmt->getBody())
+            evaluate(s);
+    }
 }
 
 void SemaCheck::visit(FunDecl* decl) {

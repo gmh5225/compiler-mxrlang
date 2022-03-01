@@ -136,6 +136,22 @@ void ASTPrinter::visit(ReturnStmt* stmt) {
     out() << ")\n";
 }
 
+// (until (conditionExpr))
+//     (stmt1)
+//     ...
+//     (stmtn)
+void ASTPrinter::visit(UntilStmt* stmt) {
+    out() << indent + "(until ";
+    increaseIndent();
+    evaluate(stmt->getCond());
+    out() << ")\n";
+
+    for (auto* s : stmt->getBody())
+        evaluate(s);
+
+    decreaseIndent();
+}
+
 // (fun funName retType (arg1) (arg2))
 //     (stmt1)
 //     (stmt2)

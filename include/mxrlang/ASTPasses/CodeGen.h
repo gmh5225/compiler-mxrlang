@@ -60,6 +60,7 @@ class CodeGen : public Visitor {
     void visit(IfStmt* stmt) override;
     void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
+    void visit(UntilStmt* stmt) override;
 
     void visit(FunDecl* decl) override;
     void visit(ModuleDecl* decl) override;

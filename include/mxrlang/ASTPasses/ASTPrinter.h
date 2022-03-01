@@ -22,6 +22,7 @@ class ASTPrinter : public Visitor {
     void visit(IfStmt* stmt) override;
     void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
+    void visit(UntilStmt* stmt) override;
 
     // Declaration visitor methods
     void visit(FunDecl* decl) override;

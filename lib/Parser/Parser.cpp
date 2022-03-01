@@ -180,6 +180,8 @@ Stmt* Parser::statement() {
         return printStmt();
     else if (match(TokenKind::kw_RETURN))
         return returnStmt();
+    else if (match(TokenKind::kw_UNTIL))
+        return untilStmt();
     else
         return exprStmt();
 }
@@ -192,9 +194,9 @@ Stmt* Parser::exprStmt() {
 }
 
 Stmt* Parser::ifStmt() {
-    // Parse the IF condition.
     Nodes thenBody;
     Nodes elseBody;
+    // Parse the IF condition.
     Expr* cond = expression();
 
     consume({TokenKind::kw_THEN}, DiagID::err_expect, "THEN"s);
@@ -213,6 +215,20 @@ Stmt* Parser::ifStmt() {
 
     return new IfStmt(cond, std::move(thenBody), std::move(elseBody),
                       previous().getLocation());
+}
+
+Stmt* Parser::untilStmt() {
+    Nodes body;
+    // Parse the UNTIL condition.
+    Expr* cond = expression();
+
+    consume({TokenKind::kw_DO}, DiagID::err_expect, "DO"s);
+
+    // Parse the body.
+    while (!match(TokenKind::kw_LITNU) && !isAtEnd())
+        body.push_back(declaration());
+
+    return new UntilStmt(cond, std::move(body), previous().getLocation());
 }
 
 Stmt* Parser::printStmt() {

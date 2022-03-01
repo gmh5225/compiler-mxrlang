@@ -45,6 +45,7 @@ class ExprStmt;
 class IfStmt;
 class PrintStmt;
 class ReturnStmt;
+class UntilStmt;
 
 class Decl;
 class FunDecl;
@@ -73,6 +74,7 @@ public:
     virtual void visit(IfStmt* stmt) = 0;
     virtual void visit(PrintStmt* stmt) = 0;
     virtual void visit(ReturnStmt* stmt) = 0;
+    virtual void visit(UntilStmt* stmt) = 0;
 
     virtual void visit(FunDecl* decl) = 0;
     virtual void visit(ModuleDecl* decl) = 0;
@@ -153,6 +155,7 @@ public:
         Module,
         Print,
         Return,
+        Until,
         Var
     };
 
@@ -409,10 +412,8 @@ class IfStmt : public Stmt {
     Nodes elseBody;
 
 public:
-    IfStmt(Expr* cond, Nodes&& thenBody,
-           Nodes&& elseBody, llvm::SMLoc loc)
-        : Stmt(StmtKind::If, loc), cond(cond),
-          thenBody(std::move(thenBody)),
+    IfStmt(Expr* cond, Nodes&& thenBody, Nodes&& elseBody, llvm::SMLoc loc)
+        : Stmt(StmtKind::If, loc), cond(cond), thenBody(std::move(thenBody)),
           elseBody(std::move(elseBody)) {}
 
     Expr* getCond() const { return cond; }
@@ -449,6 +450,22 @@ public:
 
     ACCEPT()
     CLASSOF(Stmt, Return)
+};
+
+// Statement node describing an until/do statement.
+class UntilStmt : public Stmt {
+    Expr* cond;
+    Nodes body;
+
+public:
+    UntilStmt(Expr* cond, Nodes&& body, llvm::SMLoc loc)
+        : Stmt(StmtKind::Until, loc), cond(cond), body(body) {}
+
+    Expr* getCond() const { return cond; }
+    Nodes& getBody() { return body; }
+
+    ACCEPT()
+    CLASSOF(Stmt, Until)
 };
 
 // The following classes describe statement nodes of the AST.

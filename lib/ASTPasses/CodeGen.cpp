@@ -190,11 +190,11 @@ void CodeGen::visit(IfStmt* stmt) {
     auto* cond = interResult;
 
     // Create the BBs. ElseBB is MergeBB if is no ELSE block.
-    llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(ctx, "then",
-                                                        currFun);
-    llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(ctx, "merge");
-    llvm::BasicBlock* elseBB = stmt->getElseBody().empty() ?
-        mergeBB : llvm::BasicBlock::Create(ctx, "else");
+    auto* thenBB = llvm::BasicBlock::Create(ctx, "then", currFun);
+    auto* mergeBB = llvm::BasicBlock::Create(ctx, "merge");
+    auto* elseBB = stmt->getElseBody().empty() ? mergeBB
+                                               : llvm::BasicBlock::Create(ctx,
+                                                                          "else");
 
     // Create a conditional branch.
     builder.CreateCondBr(cond, thenBB, elseBB);
@@ -238,6 +238,40 @@ void CodeGen::visit(ReturnStmt* stmt) {
     evaluate(stmt->getRetExpr());
 
     builder.CreateRet(interResult);
+}
+
+void CodeGen::visit(UntilStmt* stmt) {
+    // Create the BBs.
+    auto* condBB = llvm::BasicBlock::Create(ctx, "cond", currFun);
+    auto* bodyBB = llvm::BasicBlock::Create(ctx, "body");
+    auto* mergeBB = llvm::BasicBlock::Create(ctx, "merge");
+
+    // To make the current BB valid, we must insert an unconditional branch
+    // to the condition BB.
+    builder.CreateBr(condBB);
+
+    // Emit the condition BB. We will always return to this BB after the body
+    // finishes exection.
+    setCurrBB(condBB);
+    evaluate(stmt->getCond());
+    auto* cond = interResult;
+    builder.CreateCondBr(cond, bodyBB, mergeBB);
+
+    // Emit the body block.
+    currFun->getBasicBlockList().push_back(bodyBB);
+    setCurrBB(bodyBB);
+    // Use RAII to manage the lifetime of scopes.
+    {
+        ValueScopeMgr scopeMgr(*this);
+        for (auto s : stmt->getBody())
+            evaluate(s);
+    }
+    // Branch to the condition BB.
+    builder.CreateBr(condBB);
+
+    // Emit the merge block.
+    currFun->getBasicBlockList().push_back(mergeBB);
+    setCurrBB(mergeBB);
 }
 
 void CodeGen::visit(FunDecl* decl) {

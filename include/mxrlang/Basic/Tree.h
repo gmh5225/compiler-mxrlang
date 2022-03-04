@@ -45,6 +45,7 @@ class ExprStmt;
 class IfStmt;
 class PrintStmt;
 class ReturnStmt;
+class ScanStmt;
 class UntilStmt;
 
 class Decl;
@@ -74,6 +75,7 @@ public:
     virtual void visit(IfStmt* stmt) = 0;
     virtual void visit(PrintStmt* stmt) = 0;
     virtual void visit(ReturnStmt* stmt) = 0;
+    virtual void visit(ScanStmt* stmt) = 0;
     virtual void visit(UntilStmt* stmt) = 0;
 
     virtual void visit(FunDecl* decl) = 0;
@@ -155,8 +157,8 @@ public:
         Module,
         Print,
         Return,
-        Until,
-        Var
+        Scan,
+        Until
     };
 
 private:
@@ -450,6 +452,20 @@ public:
 
     ACCEPT()
     CLASSOF(Stmt, Return)
+};
+
+// Statement node describing a built-in SCAN function call.
+class ScanStmt : public Stmt {
+    VarExpr* scanVar;
+
+public:
+    ScanStmt(VarExpr* scanVar, llvm::SMLoc loc)
+        : Stmt(StmtKind::Scan, loc), scanVar(scanVar) {}
+
+    VarExpr* getScanVar() { return scanVar; }
+
+    ACCEPT()
+    CLASSOF(Stmt, Scan)
 };
 
 // Statement node describing an until/do statement.

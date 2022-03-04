@@ -2,7 +2,7 @@
 
 using namespace mxrlang;
 
-void CodeGen::createPrintFunction() {
+void CodeGen::createPrintScanFunctions() {
     llvm::ArrayRef<llvm::Type*> argTys = {llvm::Type::getInt8PtrTy(ctx)};
     auto* funTy = llvm::FunctionType::get(llvm::Type::getInt32Ty(ctx),
                                           argTys, true);
@@ -10,9 +10,14 @@ void CodeGen::createPrintFunction() {
     printFun = llvm::Function::Create(funTy,
                                       llvm::GlobalValue::ExternalLinkage,
                                       "printf", module.get());
+    scanFun = llvm::Function::Create(funTy,
+                                    llvm::GlobalValue::ExternalLinkage,
+                                    "__isoc99_scanf", module.get());
 
-    formatStr = builder.CreateGlobalStringPtr(llvm::StringRef("%lld\n"),
-                                              "formatstr", 0, module.get());
+    printFormatStr = builder.CreateGlobalStringPtr(llvm::StringRef("%lld\n"),
+                                                   "formatstr", 0, module.get());
+    scanFormatStr = builder.CreateGlobalStringPtr(llvm::StringRef("%lld"),
+                                                  "formatstr", 0, module.get());
 }
 
 llvm::Type* CodeGen::convertTypeToLLVMType(Type* type) {
@@ -228,16 +233,22 @@ void CodeGen::visit(IfStmt* stmt) {
 }
 
 void CodeGen::visit(PrintStmt* stmt) {
-    auto* printExpr = stmt->getPrintExpr();
-    evaluate(printExpr);
+    evaluate(stmt->getPrintExpr());
 
-    builder.CreateCall(printFun, {formatStr, interResult}, "print");
+    builder.CreateCall(printFun, {printFormatStr, interResult}, "print");
 }
 
 void CodeGen::visit(ReturnStmt* stmt) {
     evaluate(stmt->getRetExpr());
 
     builder.CreateRet(interResult);
+}
+
+void CodeGen::visit(ScanStmt* stmt) {
+    // Get the alloca for the scanned variable and pass it as a scanf parameter.
+    auto* valAlloca = env->find(stmt->getScanVar()->getName());
+
+    builder.CreateCall(scanFun, {scanFormatStr, valAlloca}, "scan");
 }
 
 void CodeGen::visit(UntilStmt* stmt) {
@@ -303,8 +314,8 @@ void CodeGen::visit(FunDecl* decl) {
 
 void CodeGen::visit(ModuleDecl* decl) {
     ValueScopeMgr scopeMgr(*this);
-    // Create a built-in PRINT function.
-    createPrintFunction();
+    // Create a built-in PRINT/SCAN functions.
+    createPrintScanFunctions();
 
     for (auto dec : decl->getBody()) {
         // Forward declare all module functions.

@@ -19,9 +19,11 @@ class CodeGen : public Visitor {
     // Environment holding various Value pointers (allocas, functions, etc).
     Environment<llvm::Value>* env = nullptr;
 
-    // Built-in print function declaration and format string.
+    // Built-in print/scan functions declarations and format string.
     llvm::Function* printFun;
-    llvm::Constant* formatStr;
+    llvm::Function* scanFun;
+    llvm::Constant* printFormatStr;
+    llvm::Constant* scanFormatStr;
 
     // LLVM internals.
     llvm::LLVMContext ctx;
@@ -60,6 +62,7 @@ class CodeGen : public Visitor {
     void visit(IfStmt* stmt) override;
     void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
+    void visit(ScanStmt* stmt) override;
     void visit(UntilStmt* stmt) override;
 
     void visit(FunDecl* decl) override;
@@ -85,7 +88,7 @@ class CodeGen : public Visitor {
     llvm::Function* createFunction(FunDecl* decl, llvm::FunctionType* type);
 
     // Declare the built-in print function.
-    void createPrintFunction();
+    void createPrintScanFunctions();
 
 public:
     CodeGen(llvm::TargetMachine* TM, std::string fileName, Diag& diag)

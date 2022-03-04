@@ -72,9 +72,12 @@ void Parser::synchronize() {
         case TokenKind::kw_FI:
         case TokenKind::kw_FUN:
         case TokenKind::kw_IF:
+        case TokenKind::kw_LITNU:
         case TokenKind::kw_NUF:
         case TokenKind::kw_PRINT:
+        case TokenKind::kw_SCAN:
         case TokenKind::kw_THEN:
+        case TokenKind::kw_UNTIL:
         case TokenKind::kw_VAR:
             return;
         default:
@@ -180,6 +183,8 @@ Stmt* Parser::statement() {
         return printStmt();
     else if (match(TokenKind::kw_RETURN))
         return returnStmt();
+    else if (match(TokenKind::kw_SCAN))
+        return scanStmt();
     else if (match(TokenKind::kw_UNTIL))
         return untilStmt();
     else
@@ -246,6 +251,17 @@ Stmt* Parser::returnStmt() {
 
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new ReturnStmt(retExpr, previous().getLocation());
+}
+
+Stmt* Parser::scanStmt() {
+    Expr* scanExpr = expression();
+
+    if (!llvm::isa<VarExpr>(scanExpr))
+        throw error(peek(), DiagID::err_expect, "variable"s);
+
+    consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
+    return new ScanStmt(llvm::dyn_cast<VarExpr>(scanExpr),
+                        previous().getLocation());
 }
 
 Expr* Parser::expression() {

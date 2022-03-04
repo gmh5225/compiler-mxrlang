@@ -36,6 +36,7 @@ class SemaCheck : public Visitor {
     void visit(IfStmt* stmt) override;
     void visit(PrintStmt* stmt) override;
     void visit(ReturnStmt* stmt) override;
+    void visit(ScanStmt* stmt) override;
     void visit(UntilStmt* stmt) override;
 
     void visit(FunDecl* decl) override;

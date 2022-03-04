@@ -62,6 +62,7 @@ class Parser {
     Stmt* ifStmt();
     Stmt* printStmt();
     Stmt* returnStmt();
+    Stmt* scanStmt();
     Stmt* untilStmt();
 
     Expr* expression();

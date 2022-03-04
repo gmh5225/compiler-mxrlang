@@ -136,6 +136,13 @@ void ASTPrinter::visit(ReturnStmt* stmt) {
     out() << ")\n";
 }
 
+// (scan (scanVar))
+void ASTPrinter::visit(ScanStmt* stmt) {
+    out() << indent + "(scan ";
+    evaluate(stmt->getScanVar());
+    out() << ")\n";
+}
+
 // (until (conditionExpr))
 //     (stmt1)
 //     ...

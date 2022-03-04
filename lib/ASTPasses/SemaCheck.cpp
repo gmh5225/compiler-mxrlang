@@ -169,6 +169,10 @@ void SemaCheck::visit(ReturnStmt* stmt) {
         diag.report(stmt->getLoc(), DiagID::err_ret_type_mismatch);
 }
 
+void SemaCheck::visit(ScanStmt* stmt) {
+    evaluate(stmt->getScanVar());
+}
+
 void SemaCheck::visit(UntilStmt* stmt) {
     evaluate(stmt->getCond());
     if (!(stmt->getCond()->getType() == Type::getBoolType()))

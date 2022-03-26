@@ -1,11 +1,11 @@
-#ifndef POSTORDERVISITOR_H
-#define POSTORDERVISITOR_H
+#ifndef CONSTFOLD_H
+#define CONSTFOLD_H
 
 #include "Tree.h"
 
 namespace mxrlang {
 
-class PostOrderVisitor : public Visitor {
+class ConstFold : public Visitor {
     // Expression visitor methods
     void visit(AssignExpr* expr) override;
     void visit(BinaryArithExpr* expr) override;
@@ -30,11 +30,8 @@ class PostOrderVisitor : public Visitor {
     void visit(ModuleDecl* decl) override;
     void visit(VarDecl* decl) override;
 
-    // A vector containing AST nodes in post-order traversal.
-    Nodes postOrder;
-
-    // Declaration of the module to be visited.
-    ModuleDecl* moduleDecl;
+    // New node that should be swapped with the one that is currently evaluated.
+    Expr* swap = nullptr;
 
     // Helper function for evaluating an expression or a statement.
     template <typename T>
@@ -43,16 +40,12 @@ class PostOrderVisitor : public Visitor {
     }
 
 public:
-    PostOrderVisitor(ModuleDecl* moduleDecl)
-        : moduleDecl(moduleDecl) {}
-
-    Nodes& getPostOrder() {
-        postOrder.clear();
+    // Runner.
+    void run(ModuleDecl* moduleDecl) {
         evaluate(moduleDecl);
-        return postOrder;
     }
 };
 
 }
 
-#endif // POSTORDERVISITOR_H
+#endif // CONSTFOLD_H

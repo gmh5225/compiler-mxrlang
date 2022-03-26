@@ -375,6 +375,10 @@ public:
         value.setIsSigned(true);
     }
 
+    IntLiteralExpr(llvm::APSInt value, llvm::SMLoc loc, Node* parent = nullptr)
+        : Expr(ExprKind::IntLiteral, loc, parent, Type::getIntType()),
+          value(value) {}
+
     const llvm::APSInt& getValue() const { return value; }
 
     ACCEPT()

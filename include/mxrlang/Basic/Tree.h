@@ -1,14 +1,13 @@
 ﻿#ifndef TREE_H
 #define TREE_H
 
-#include "Type.h"
-
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SMLoc.h"
-
 #include <vector>
+
+#include "Type.h"
 
 // This file contains definitions of abstract syntax tree expression
 // and statement classes.

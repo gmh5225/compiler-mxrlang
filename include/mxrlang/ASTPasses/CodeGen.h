@@ -81,9 +81,6 @@ class CodeGen : public Visitor {
         builder.SetInsertPoint(BB);
     }
 
-    // Convert mxrlang type to LLVM type.
-    llvm::Type* convertTypeToLLVMType(Type* type);
-
     llvm::FunctionType* createFunctionType(FunDecl* decl);
     llvm::Function* createFunction(FunDecl* decl, llvm::FunctionType* type);
 

@@ -3,10 +3,9 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/SMLoc.h"
+#include <list>
 
 #include "TokenKinds.h"
-
-#include <list>
 
 namespace mxrlang {
 

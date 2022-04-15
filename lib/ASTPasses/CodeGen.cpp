@@ -20,22 +20,13 @@ void CodeGen::createPrintScanFunctions() {
                                                   "formatstr", 0, module.get());
 }
 
-llvm::Type* CodeGen::convertTypeToLLVMType(Type* type) {
-    if (type == Type::getIntType())
-        return llvm::Type::getInt64Ty(ctx);
-    else if (type == Type::getBoolType())
-        return llvm::Type::getInt1Ty(ctx);
-
-    llvm_unreachable("Unknown type.");
-}
-
 llvm::FunctionType* CodeGen::createFunctionType(FunDecl* decl) {
-    auto* retTy = convertTypeToLLVMType(decl->getRetType());
+    auto* retTy = decl->getRetType()->getLLVMType(ctx);
 
     // Convert argument types to LLVM types.
     std::vector<llvm::Type*> args;
     for (auto arg : decl->getArgs())
-        args.push_back(convertTypeToLLVMType(arg->getType()));
+        args.push_back(arg->getType()->getLLVMType(ctx));
 
     return llvm::FunctionType::get(retTy, args, /*isVarArg*/ false);
 }
@@ -63,8 +54,7 @@ void CodeGen::visit(AssignExpr* expr) {
     // Create a load which is the "result" of the assigne expression,
     // and can be used further in code. If not used, it will be cleaned
     // up by DCE.
-    interResult = builder.CreateLoad(convertTypeToLLVMType(expr->getType()),
-                                     dest);
+    interResult = builder.CreateLoad(expr->getType()->getLLVMType(ctx), dest);
 }
 
 void CodeGen::visit(BinaryArithExpr *expr) {
@@ -134,8 +124,8 @@ void CodeGen::visit(BinaryLogicalExpr* expr) {
 }
 
 void CodeGen::visit(BoolLiteralExpr* expr) {
-    auto* lit = llvm::ConstantInt::get(
-                convertTypeToLLVMType(expr->getType()), expr->getValue());
+    auto* lit = llvm::ConstantInt::get(expr->getType()->getLLVMType(ctx),
+                                       expr->getValue());
     interResult = lit;
 }
 
@@ -157,8 +147,8 @@ void CodeGen::visit(GroupingExpr* expr) {
 }
 
 void CodeGen::visit(IntLiteralExpr* expr) {
-    auto* lit = llvm::ConstantInt::get(
-                convertTypeToLLVMType(expr->getType()), expr->getValue());
+    auto* lit = llvm::ConstantInt::get(expr->getType()->getLLVMType(ctx),
+                                       expr->getValue());
     interResult = lit;
 }
 
@@ -181,8 +171,8 @@ void CodeGen::visit(VarExpr* expr) {
     auto* valAlloca = env->find(expr->getName());
     assert(valAlloca && "Undefined alloca");
 
-    interResult = builder.CreateLoad(convertTypeToLLVMType(expr->getType()),
-                                     valAlloca, expr->getName());
+    interResult = builder.CreateLoad(expr->getType()->getLLVMType(ctx), valAlloca,
+                                     expr->getName());
 }
 
 void CodeGen::visit(ExprStmt* stmt) {
@@ -341,7 +331,7 @@ void CodeGen::visit(VarDecl* decl) {
     if (decl->isGlobal()) {
         // Create a global variable, set the linkage to private...
         module->getOrInsertGlobal(decl->getName(),
-                                  convertTypeToLLVMType(decl->getType()));
+                                  decl->getType()->getLLVMType(ctx));
         auto* globalVar = module->getNamedGlobal(decl->getName());
         globalVar->setLinkage(llvm::GlobalValue::PrivateLinkage);
         // ... and register it in the scope manager.
@@ -358,8 +348,8 @@ void CodeGen::visit(VarDecl* decl) {
         // function...
         llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
                                      currFun->getEntryBlock().begin());
-        auto* alloca = tmpBuilder.CreateAlloca(
-            convertTypeToLLVMType(decl->getType()), 0, decl->getName());
+        auto* alloca = tmpBuilder.CreateAlloca(decl->getType()->getLLVMType(ctx),
+                                               0, decl->getName());
         // ... and register it in the scope menager.
         env->insert(alloca, decl->getName());
 

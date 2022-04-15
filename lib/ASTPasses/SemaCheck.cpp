@@ -6,8 +6,9 @@ void SemaCheck::visit(AssignExpr* expr) {
     evaluate(expr->getDest());
     evaluate(expr->getSource());
 
-    if (expr->getDest()->getType() != expr->getSource()->getType())
-        diag.report(expr->getLoc(), DiagID::err_ret_type_mismatch);
+    if (!Type::checkTypesMatching(expr->getDest()->getType(),
+                                  expr->getSource()->getType()))
+        diag.report(expr->getLoc(), DiagID::err_incompatible_types);
 
     expr->setType(expr->getDest()->getType());
 }
@@ -18,9 +19,9 @@ void SemaCheck::visit(BinaryArithExpr* expr) {
 
     auto* leftTy = expr->getLeft()->getType();
     auto* rightTy = expr->getRight()->getType();
-    if ((leftTy != Type::getIntType()) ||
-        (rightTy != Type::getIntType()) ||
-        (leftTy != rightTy))
+    if (!Type::checkTypesMatching(leftTy, Type::getIntType()) ||
+        !Type::checkTypesMatching(rightTy, Type::getIntType()) ||
+        !Type::checkTypesMatching(leftTy, rightTy))
         diag.report(expr->getLoc(), DiagID::err_arith_type);
 
     expr->setType(leftTy);
@@ -35,22 +36,22 @@ void SemaCheck::visit(BinaryLogicalExpr* expr) {
     auto kind = expr->getBinaryKind();
     if ((kind == BinaryLogicalExpr::BinaryLogicalExprKind::And) ||
         (kind == BinaryLogicalExpr::BinaryLogicalExprKind::Or)) {
-        if ((leftTy != Type::getBoolType()) ||
-            (rightTy != Type::getBoolType()) ||
-            (leftTy != rightTy))
+        if (!Type::checkTypesMatching(leftTy, Type::getBoolType()) ||
+            !Type::checkTypesMatching(rightTy, Type::getBoolType()) ||
+            !Type::checkTypesMatching(leftTy, rightTy))
             diag.report(expr->getLoc(), DiagID::err_logic_type);
 
         expr->setType(leftTy);
     } else if ((kind == BinaryLogicalExpr::BinaryLogicalExprKind::Eq) ||
                (kind == BinaryLogicalExpr::BinaryLogicalExprKind::NotEq)) {
-        if (leftTy != rightTy)
+        if (!Type::checkTypesMatching(leftTy, rightTy))
             diag.report(expr->getLoc(), DiagID::err_incompatible_types);
 
         expr->setType(Type::getBoolType());
     } else {
-        if ((leftTy != Type::getIntType()) ||
-            (rightTy != Type::getIntType()) ||
-            (leftTy != rightTy))
+        if (!Type::checkTypesMatching(leftTy, Type::getIntType()) ||
+            !Type::checkTypesMatching(rightTy, Type::getIntType()) ||
+            !Type::checkTypesMatching(leftTy, rightTy))
             diag.report(expr->getLoc(), DiagID::err_arith_type);
 
         expr->setType(Type::getBoolType());
@@ -85,7 +86,7 @@ void SemaCheck::visit(CallExpr* expr) {
         // Process the argument.
         evaluate(callArg);
 
-        if (callArg->getType() != declArg->getType())
+        if (!Type::checkTypesMatching(callArg->getType(), declArg->getType()))
             diag.report(expr->getLoc(), DiagID::err_arg_type_mismatch);
     }
 
@@ -106,10 +107,10 @@ void SemaCheck::visit(UnaryExpr* expr) {
     auto exprTy = expr->getExpr()->getType();
     auto kind = expr->getUnaryKind();
     if (kind == UnaryExpr::UnaryExprKind::NegArith) {
-        if (exprTy != Type::getIntType())
+        if (!Type::checkTypesMatching(exprTy, Type::getIntType()))
             diag.report(expr->getLoc(), DiagID::err_arith_type);
     } else {
-        if (exprTy != Type::getBoolType())
+        if (!Type::checkTypesMatching(exprTy, Type::getBoolType()))
             diag.report(expr->getLoc(), DiagID::err_logic_type);
     }
 
@@ -135,7 +136,8 @@ void SemaCheck::visit(ExprStmt* stmt) { evaluate(stmt->getExpr()); }
 
 void SemaCheck::visit(IfStmt* stmt) {
     evaluate(stmt->getCond());
-    if (!(stmt->getCond()->getType() == Type::getBoolType()))
+    if (!Type::checkTypesMatching(stmt->getCond()->getType(),
+                                  Type::getBoolType()))
         diag.report(stmt->getLoc(), DiagID::err_cond_not_bool);
 
     // Use RAII to manage the lifetime of scopes.
@@ -164,8 +166,10 @@ void SemaCheck::visit(ReturnStmt* stmt) {
     else
         evaluate(stmt->getRetExpr());
 
-    assert(stmt->getRetExpr()->getType() != Type::getNoneType());
-    if (currFun->getRetType() != stmt->getRetExpr()->getType())
+    assert(!Type::checkTypesMatching(stmt->getRetExpr()->getType(),
+                                     Type::getNoneType()));
+    if (!Type::checkTypesMatching(currFun->getRetType(),
+                                  stmt->getRetExpr()->getType()))
         diag.report(stmt->getLoc(), DiagID::err_ret_type_mismatch);
 }
 
@@ -175,7 +179,8 @@ void SemaCheck::visit(ScanStmt* stmt) {
 
 void SemaCheck::visit(UntilStmt* stmt) {
     evaluate(stmt->getCond());
-    if (!(stmt->getCond()->getType() == Type::getBoolType()))
+    if (!Type::checkTypesMatching(stmt->getCond()->getType(),
+                                  Type::getBoolType()))
         diag.report(stmt->getLoc(), DiagID::err_cond_not_bool);
 
     // Use RAII to manage the lifetime of scopes.
@@ -237,17 +242,18 @@ void SemaCheck::visit(VarDecl* decl) {
 
     // Initializer must have a compatible type.
     if (decl->getInitializer() &&
-        (decl->getType() != decl->getInitializer()->getType()))
+        !Type::checkTypesMatching(decl->getType(),
+                                  decl->getInitializer()->getType()))
         diag.report(decl->getLoc(), DiagID::err_incompatible_types);
 
     // If this is a global variable, the initializer must be an INT or BOOL
     // literal.
     if (decl->isGlobal()) {
-        if (decl->getType() == Type::getIntType() &&
+        if (Type::checkTypesMatching(decl->getType(), Type::getIntType()) &&
             !llvm::isa<IntLiteralExpr>(decl->getInitializer()))
             diag.report(decl->getLoc(), DiagID::err_global_init_not_lit);
 
-        if (decl->getType() == Type::getBoolType() &&
+        if (Type::checkTypesMatching(decl->getType(), Type::getBoolType()) &&
             !llvm::isa<BoolLiteralExpr>(decl->getInitializer()))
             diag.report(decl->getLoc(), DiagID::err_global_init_not_lit);
     }

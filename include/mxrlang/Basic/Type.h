@@ -1,9 +1,11 @@
 #ifndef TYPE_H
 #define TYPE_H
 
-#include "Token.h"
-
 #include "llvm/IR/Type.h"
+#include "llvm/IR/DerivedTypes.h"
+#include <unordered_map>
+
+#include "Token.h"
 
 using namespace std::string_literals;
 
@@ -13,51 +15,93 @@ namespace mxrlang {
 class Type {
 public:
     enum class TypeKind {
-        Bool,
-        Int,
-        None
+        Basic,
+        Pointer
     };
 
-private:
+protected:
     TypeKind type;
 
-    // Mxrlang built-in types.
-    static Type boolType;
-    static Type intType;
-    static Type noneType;
+    // A register of all program types (built-in and user defined).
+    static std::unordered_map<std::string, Type*> typeTable;
 public:
     Type(TypeKind type) : type(type) {}
 
     // Convert the type token.
     static Type* getTypeFromToken(const Token& token) {
         if (token.getKind() == TokenKind::kw_BOOL)
-            return &boolType;
+            return getBoolType();
         else if (token.getKind() == TokenKind::kw_INT)
-            return &intType;
+            return getIntType();
 
         return nullptr;
     }
 
     // Get the built-in bool type.
-    static Type* getBoolType() { return &boolType; }
+    static Type* getBoolType() { return typeTable["BOOL"]; }
 
     // Get the built-in integer type.
-    static Type* getIntType() { return &intType; }
+    static Type* getIntType() { return typeTable["INT"]; }
 
     // Get the NONE type, which suggests that the type of expression
     // hasn't been inferred yet.
-    static Type* getNoneType() { return &noneType; }
+    static Type* getNoneType() { return typeTable["NONE"]; }
+
+    // Check if the two provided types match.
+    static bool checkTypesMatching(Type* left, Type* right);
+
+    TypeKind getTypeKind() const { return type; }
 
     // Convert the type to string. Useful when printing out the type.
-    std::string toString() const {
-        if (type == TypeKind::Bool)
+    virtual std::string toString() const { return ""; }
+
+    virtual llvm::Type* getLLVMType(llvm::LLVMContext& ctx) const = 0;
+};
+
+// Holds the mxrlang built-in types.
+class BasicType : public Type {
+public:
+    enum class BasicTypeKind {
+        Bool,
+        Int,
+        None
+    };
+
+private:
+    BasicTypeKind basicType;
+
+public:
+    BasicType(BasicTypeKind type) : Type(TypeKind::Basic), basicType(type) {}
+
+    // Mxrlang built-in types.
+    static BasicType boolType;
+    static BasicType intType;
+    static BasicType noneType;
+
+    BasicTypeKind getBasicTypeKind() const { return basicType; }
+
+    // Convert the type to string. Useful when printing out the type.
+    std::string toString() const override {
+        if (basicType == BasicTypeKind::Bool)
             return "bool";
-        else if (type == TypeKind::Int)
+        else if (basicType == BasicTypeKind::Int)
             return "int";
-        else if (type == TypeKind::None)
+        else if (basicType == BasicTypeKind::None)
             return "none";
 
         llvm_unreachable("Defective type.");
+    }
+
+    llvm::Type* getLLVMType(llvm::LLVMContext& ctx) const override {
+        if (basicType == BasicTypeKind::Int)
+            return llvm::Type::getInt64Ty(ctx);
+        else if (basicType == BasicTypeKind::Bool)
+            return llvm::Type::getInt1Ty(ctx);
+        llvm_unreachable("Unknown type.");
+    }
+
+    static bool classof(const Type* node) {
+        return node->getTypeKind() == Type::TypeKind::Basic;
     }
 };
 

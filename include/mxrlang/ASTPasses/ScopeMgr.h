@@ -1,9 +1,9 @@
 #ifndef SCOPEMGR_H
 #define SCOPEMGR_H
 
-#include "Environment.h"
-
 #include <memory>
+
+#include "Environment.h"
 
 namespace mxrlang {
 

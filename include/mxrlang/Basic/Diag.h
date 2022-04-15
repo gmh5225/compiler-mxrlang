@@ -6,7 +6,6 @@
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
-
 #include <cstdint>
 
 namespace mxrlang {

@@ -54,6 +54,7 @@ class VarDecl;
 
 using Nodes = std::vector<Node*>;
 using Decls = std::vector<Decl*>;
+using Exprs = std::vector<Expr*>;
 using FunCallArgs = std::vector<Expr*>;
 using FunDeclArgs = std::vector<VarDecl*>;
 
@@ -141,9 +142,9 @@ public:
         : Node(NodeKind::Expr, loc, parent), kind(kind), type(type) {}
 
     // Check whether this is a valid target of an assignment.
-    // Can be overridden by valid targets (eg. Variable_expr) to return an
-    // Assign_expr.
-    virtual Expr* makeAssignExpr(Expr* source) { return nullptr; }
+    // Can be overridden by valid targets (eg. VariableExpr) to return an
+    // Assign expression.
+    virtual bool isValidAssignDest() { return false; }
 
     ExprKind getKind() const { return kind; }
     Type* getType() const { return type; }
@@ -206,20 +207,21 @@ public:
 
 // Describes an assignment (e.g. x := 5).
 class AssignExpr : public Expr {
-    Expr* dest;
+    Exprs dests;
     Expr* source;
 
 public:
-    AssignExpr(Expr* dest, Expr* source, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Assign, loc, parent), dest(dest), source(source) {
-        dest->setParent(this);
+    AssignExpr(Exprs dests, Expr* source, llvm::SMLoc loc, Node* parent = nullptr)
+        : Expr(ExprKind::Assign, loc, parent), dests(dests), source(source) {
+        for (auto* dest : dests)
+            dest->setParent(this);
         source->setParent(this);
     }
 
-    Expr* getDest() const { return dest; }
+    Exprs getDests() const { return dests; }
     Expr* getSource() const { return source; }
 
-    void setDest(Expr* dest) { this->dest = dest; }
+    void setDests(Exprs dests) { this->dests = dests; }
     void setSource(Expr* source) { this->source = source; }
 
     ACCEPT()
@@ -430,9 +432,7 @@ public:
     CLASSOF(Expr, Var)
 
     // VarExpr is a valid assignment destination.
-    Expr* makeAssignExpr(Expr* source) override {
-        return new AssignExpr(this, source, this->getLoc());
-    }
+    bool isValidAssignDest() override { return true; }
 };
 
 // The following classes describe statement nodes of the AST.

@@ -3,7 +3,8 @@
 using namespace mxrlang;
 
 void PostOrderVisitor::visit(AssignExpr* expr) {
-    evaluate(expr->getDest());
+    for (auto* dest : expr->getDests())
+        evaluate(dest);
     evaluate(expr->getSource());
 
     postOrder.emplace_back(expr);

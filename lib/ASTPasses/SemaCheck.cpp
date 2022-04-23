@@ -3,14 +3,16 @@
 using namespace mxrlang;
 
 void SemaCheck::visit(AssignExpr* expr) {
-    evaluate(expr->getDest());
-    evaluate(expr->getSource());
+    for (auto* dest : expr->getDests()) {
+        evaluate(dest);
+        evaluate(expr->getSource());
 
-    if (!Type::checkTypesMatching(expr->getDest()->getType(),
-                                  expr->getSource()->getType()))
-        diag.report(expr->getLoc(), DiagID::err_incompatible_types);
+        if (!Type::checkTypesMatching(dest->getType(),
+                                      expr->getSource()->getType()))
+            diag.report(expr->getLoc(), DiagID::err_incompatible_types);
 
-    expr->setType(expr->getDest()->getType());
+        expr->setType(dest->getType());
+    }
 }
 
 void SemaCheck::visit(BinaryArithExpr* expr) {

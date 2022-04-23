@@ -271,16 +271,23 @@ Expr* Parser::expression() {
 Expr* Parser::assignment() {
     auto* expr = logicalOr();
 
-    if (match(TokenKind::colonequal)) {
-        auto* source = expression();
+    Exprs dests;
+    Expr* source = nullptr;
 
-        auto* assign = expr->makeAssignExpr(source);
-        if (assign)
-            return assign;
-        throw error(peek(), DiagID::err_invalid_assign_target, ""s);
+    while (match(TokenKind::colonequal)) {
+        source = logicalOr();
+
+        if (expr->isValidAssignDest()) {
+            dests.push_back(expr);
+            expr = source;
+        } else
+            throw error(peek(), DiagID::err_invalid_assign_target, ""s);
     }
 
-    return expr;
+    if (!dests.empty())
+        return new AssignExpr(dests, source, expr->getLoc());
+    else
+        return expr;
 }
 
 Expr* Parser::logicalOr() {

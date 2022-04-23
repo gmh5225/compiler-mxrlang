@@ -41,20 +41,17 @@ void CodeGen::visit(AssignExpr* expr) {
     evaluate(expr->getSource());
     auto* source = interResult;
 
-    llvm::Value* dest = nullptr;
-    if (llvm::isa<VarExpr>(expr->getDest())) {
-        auto* destVar = llvm::dyn_cast<VarExpr>(expr->getDest());
-        dest = env->find(destVar->getName());
-        assert(dest && "Undefined alloca");
-    } else
-        llvm_unreachable("Invalid assign destination.");
+    for (auto* dest : expr->getDests()) {
+        llvm::Value* destVal = nullptr;
+        if (llvm::isa<VarExpr>(dest)) {
+            auto* destVar = llvm::dyn_cast<VarExpr>(dest);
+            destVal = env->find(destVar->getName());
+            assert(destVal && "Undefined alloca");
+        } else
+            llvm_unreachable("Invalid assign destination.");
 
-    builder.CreateStore(source, dest);
-
-    // Create a load which is the "result" of the assigne expression,
-    // and can be used further in code. If not used, it will be cleaned
-    // up by DCE.
-    interResult = builder.CreateLoad(expr->getType()->getLLVMType(ctx), dest);
+        builder.CreateStore(source, destVal);
+    }
 }
 
 void CodeGen::visit(BinaryArithExpr *expr) {

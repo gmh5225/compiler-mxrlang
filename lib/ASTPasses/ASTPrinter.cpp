@@ -21,10 +21,13 @@ void ASTPrinter::printVar(VarDecl* stmt) {
     out() << stmt->getName().str() + " " + stmt->getType()->toString();
 }
 
-// (= (dest) (source))
+// (= (dest, dest, dest, ....) (source))
 void ASTPrinter::visit(AssignExpr* expr) {
     out() << "(= ";
-    evaluate(expr->getDest());
+    for (auto* dest : expr->getDests()) {
+        evaluate(dest);
+        out() << " ";
+    }
     out() << " ";
     evaluate(expr->getSource());
     out() << ")";

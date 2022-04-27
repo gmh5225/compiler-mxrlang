@@ -145,9 +145,7 @@ void ConstFold::visit(BinaryLogicalExpr* expr) {
     }
 }
 
-void ConstFold::visit(BoolLiteralExpr* expr) {
-
-}
+void ConstFold::visit(BoolLiteralExpr* expr) {}
 
 void ConstFold::visit(CallExpr* expr) {
     for (auto it = expr->getArgs().begin(); it != expr->getArgs().end(); ++it) {
@@ -169,9 +167,9 @@ void ConstFold::visit(GroupingExpr* expr) {
     }
 }
 
-void ConstFold::visit(IntLiteralExpr* expr) {
+void ConstFold::visit(IntLiteralExpr* expr) {}
 
-}
+void ConstFold::visit(PointerOpExpr* expr) {}
 
 void ConstFold::visit(UnaryExpr* expr) {
     evaluate(expr->getExpr());
@@ -182,9 +180,7 @@ void ConstFold::visit(UnaryExpr* expr) {
     }
 }
 
-void ConstFold::visit(VarExpr* expr) {
-
-}
+void ConstFold::visit(VarExpr* expr) {}
 
 void ConstFold::visit(ExprStmt* stmt) {
     evaluate(stmt->getExpr());
@@ -244,9 +240,7 @@ void ConstFold::visit(ReturnStmt* stmt) {
     }
 }
 
-void ConstFold::visit(ScanStmt* stmt) {
-
-}
+void ConstFold::visit(ScanStmt* stmt) {}
 
 void ConstFold::visit(UntilStmt* stmt) {
     evaluate(stmt->getCond());

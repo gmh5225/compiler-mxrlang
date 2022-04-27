@@ -110,6 +110,9 @@ VarDecl* Parser::parseSingleVar(bool isFunArg) {
                                    DiagID::err_expect, "type");
     Type* varType = Type::getTypeFromToken(typeTok);
 
+    while (match(TokenKind::star))
+        varType = new PointerType(varType);
+
     // Parse the initializer, if it exists.
     Expr* initializer = nullptr;
     if (!isFunArg && match(TokenKind::colonequal))
@@ -276,12 +279,8 @@ Expr* Parser::assignment() {
 
     while (match(TokenKind::colonequal)) {
         source = logicalOr();
-
-        if (expr->isValidAssignDest()) {
-            dests.push_back(expr);
-            expr = source;
-        } else
-            throw error(peek(), DiagID::err_invalid_assign_target, ""s);
+        dests.push_back(expr);
+        expr = source;
     }
 
     if (!dests.empty())
@@ -439,12 +438,29 @@ Expr* Parser::unary() {
             kind = UnaryExpr::UnaryExprKind::NegArith;
             break;
         default:
-            llvm_unreachable("Wring unary operator.");
+            llvm_unreachable("Wrong unary operator.");
         }
 
         auto* expr = primary();
-        return new UnaryExpr(kind, expr, opString,
-                             previous().getLocation());
+        return new UnaryExpr(kind, expr, opString, previous().getLocation());
+    }
+
+    if (match(TokenKind::ampersand) || match(TokenKind::star)) {
+        auto opString = previous().getData();
+        PointerOpExpr::PointerOpKind kind;
+        switch (previous().getKind()) {
+        case TokenKind::ampersand:
+            kind = PointerOpExpr::PointerOpKind::AddressOf;
+            break;
+        case TokenKind::star:
+            kind = PointerOpExpr::PointerOpKind::Dereference;
+            break;
+        default:
+            llvm_unreachable("Wrong pointer operation.");
+        }
+
+        auto* expr = primary();
+        return new PointerOpExpr(kind, expr, opString, previous().getLocation());
     }
 
     return primary();

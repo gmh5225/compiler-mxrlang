@@ -44,6 +44,11 @@ void PostOrderVisitor::visit(IntLiteralExpr* expr) {
     postOrder.emplace_back(expr);
 }
 
+void PostOrderVisitor::visit(PointerOpExpr* expr) {
+    evaluate(expr->getExpr());
+    postOrder.emplace_back(expr);
+}
+
 void PostOrderVisitor::visit(UnaryExpr* expr) {
     evaluate(expr->getExpr());
     postOrder.emplace_back(expr);

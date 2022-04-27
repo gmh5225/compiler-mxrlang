@@ -42,14 +42,8 @@ void CodeGen::visit(AssignExpr* expr) {
     auto* source = interResult;
 
     for (auto* dest : expr->getDests()) {
-        llvm::Value* destVal = nullptr;
-        if (llvm::isa<VarExpr>(dest)) {
-            auto* destVar = llvm::dyn_cast<VarExpr>(dest);
-            destVal = env->find(destVar->getName());
-            assert(destVal && "Undefined alloca");
-        } else
-            llvm_unreachable("Invalid assign destination.");
-
+        evaluate(dest);
+        auto* destVal = interResult;
         builder.CreateStore(source, destVal);
     }
 }
@@ -149,6 +143,23 @@ void CodeGen::visit(IntLiteralExpr* expr) {
     interResult = lit;
 }
 
+void CodeGen::visit(PointerOpExpr* expr) {
+    auto kind = expr->getPointerOpKind();
+    if (kind == PointerOpExpr::PointerOpKind::AddressOf) {
+        // "&" returns the pointer to the variable, but since allocas ARE
+        // variable pointers, we just need to get the corresponding alloca.
+        evaluate(expr->getExpr());
+    } else {
+        evaluate(expr->getExpr());
+        auto* pointerLLVMTy =
+            llvm::dyn_cast<llvm::PointerType>(interResult->getType());
+        assert(pointerLLVMTy && "Dereferencing a non-pointer type.");
+
+        interResult = builder.CreateLoad(pointerLLVMTy->getElementType(),
+                                         interResult);
+    }
+}
+
 void CodeGen::visit(UnaryExpr* expr) {
     evaluate(expr->getExpr());
 
@@ -168,8 +179,12 @@ void CodeGen::visit(VarExpr* expr) {
     auto* valAlloca = env->find(expr->getName());
     assert(valAlloca && "Undefined alloca");
 
-    interResult = builder.CreateLoad(expr->getType()->getLLVMType(ctx), valAlloca,
-                                     expr->getName());
+    if (expr->getVarExprKind() == VarExpr::VarExprKind::Read)
+        interResult = builder.CreateLoad(expr->getType()->getLLVMType(ctx),
+                                         valAlloca,
+                                         expr->getName());
+    else
+        interResult = valAlloca;
 }
 
 void CodeGen::visit(ExprStmt* stmt) {

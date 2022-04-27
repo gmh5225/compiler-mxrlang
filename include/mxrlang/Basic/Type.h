@@ -105,6 +105,31 @@ public:
     }
 };
 
+// Holds the pointer types.
+class PointerType : public Type {
+private:
+    Type* pointeeType;
+
+public:
+    PointerType(Type* pointeeType)
+        : Type(TypeKind::Pointer), pointeeType(pointeeType) {}
+
+    Type* getPointeeType() { return pointeeType; }
+
+    // Convert the type to string. Useful when printing out the type.
+    std::string toString() const override {
+        return pointeeType->toString() + "*";
+    }
+
+    llvm::Type* getLLVMType(llvm::LLVMContext& ctx) const override {
+        return llvm::PointerType::get(pointeeType->getLLVMType(ctx), 0);
+    }
+
+    static bool classof(const Type* node) {
+        return node->getTypeKind() == Type::TypeKind::Pointer;
+    }
+};
+
 }
 
 #endif // TYPE_H

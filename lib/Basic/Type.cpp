@@ -19,6 +19,16 @@ bool Type::checkTypesMatching(Type* left, Type* right) {
 
         // Basic types only live as static members of the BasicType class.
         return left == right;
+    } else if (left->getTypeKind() == TypeKind::Pointer) {
+        if (left->getTypeKind() != TypeKind::Pointer)
+            return false;
+
+        auto* leftPointer = llvm::dyn_cast<PointerType>(left);
+        auto* rightPointer = llvm::dyn_cast<PointerType>(right);
+
+        // Recursively check pointee types.
+        return checkTypesMatching(leftPointer->getPointeeType(),
+                                  rightPointer->getPointeeType());
     }
 
     return false;

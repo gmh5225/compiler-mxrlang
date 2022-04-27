@@ -36,6 +36,7 @@ class BoolLiteralExpr;
 class CallExpr;
 class GroupingExpr;
 class IntLiteralExpr;
+class PointerOpExpr;
 class UnaryExpr;
 class VarExpr;
 
@@ -68,6 +69,7 @@ public:
     virtual void visit(CallExpr* expr) = 0;
     virtual void visit(GroupingExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
+    virtual void visit(PointerOpExpr* expr) = 0;
     virtual void visit(UnaryExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
 
@@ -127,6 +129,7 @@ public:
         Call,
         Grouping,
         IntLiteral,
+        PointerOp,
         Unary,
         Var
     };
@@ -386,6 +389,43 @@ public:
     CLASSOF(Expr, IntLiteral)
 };
 
+// Describes an operation on a pointer (addres-of/dereference).
+class PointerOpExpr : public Expr {
+public:
+    enum class PointerOpKind {
+        AddressOf,
+        Dereference
+    };
+
+private:
+    PointerOpKind pointerOpKind;
+    Expr* expr;
+    // Useful for printing out the AST.
+    llvm::StringRef opString;
+
+public:
+    PointerOpExpr(PointerOpKind pointerOpKind, Expr* expr,
+                  llvm::StringRef opString, llvm::SMLoc loc,
+                  Node* parent = nullptr)
+        : Expr(ExprKind::PointerOp, loc, parent), pointerOpKind(pointerOpKind),
+          expr(expr), opString(opString) {
+        expr->setParent(this);
+    }
+
+    PointerOpKind getPointerOpKind() const { return pointerOpKind; }
+    Expr* getExpr() const { return expr; }
+    const llvm::StringRef& getOpString() const { return opString; }
+
+    void setExpr(Expr* expr) { this->expr = expr; }
+
+    ACCEPT()
+    CLASSOF(Expr, PointerOp)
+
+    bool isValidAssignDest() override {
+        return pointerOpKind == PointerOpKind::Dereference;
+    }
+};
+
 // Describes an unary expression (e.g. !x).
 class UnaryExpr : public Expr {
 public:
@@ -420,13 +460,26 @@ public:
 
 // Describes a variable acces (either to read or to write).
 class VarExpr : public Expr {
+public:
+    enum class VarExprKind {
+        Read,
+        Write
+    };
+
+private:
     llvm::StringRef name;
+    // Denotes whether we use this access as a read or a write.
+    VarExprKind varExprKind;
 
 public:
     VarExpr(llvm::StringRef name, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Var, loc, parent), name(name) {}
+        : Expr(ExprKind::Var, loc, parent), name(name),
+          varExprKind(VarExprKind::Read) {}
 
     const llvm::StringRef& getName() const { return name; }
+    VarExprKind getVarExprKind() const { return varExprKind; }
+
+    void setVarExprKind(VarExprKind kind) { varExprKind = kind; }
 
     ACCEPT()
     CLASSOF(Expr, Var)

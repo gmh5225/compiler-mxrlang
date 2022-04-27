@@ -3,9 +3,15 @@
 using namespace mxrlang;
 
 void SemaCheck::visit(AssignExpr* expr) {
+    evaluate(expr->getSource());
+
+    // Evaluating all assignment destinations.
+    assignLeftSide = true;
     for (auto* dest : expr->getDests()) {
+        if (!dest->isValidAssignDest())
+            diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
+
         evaluate(dest);
-        evaluate(expr->getSource());
 
         if (!Type::checkTypesMatching(dest->getType(),
                                       expr->getSource()->getType()))
@@ -13,6 +19,7 @@ void SemaCheck::visit(AssignExpr* expr) {
 
         expr->setType(dest->getType());
     }
+    assignLeftSide = false;
 }
 
 void SemaCheck::visit(BinaryArithExpr* expr) {
@@ -103,6 +110,38 @@ void SemaCheck::visit(GroupingExpr* expr) {
 
 void SemaCheck::visit(IntLiteralExpr* expr) {}
 
+void SemaCheck::visit(PointerOpExpr* expr) {
+    auto* e = expr->getExpr();
+    auto kind = expr->getPointerOpKind();
+    if (kind == PointerOpExpr::PointerOpKind::AddressOf) {
+        // We can only take the address of a VarExpr.
+        auto* var = llvm::dyn_cast<VarExpr>(e);
+        if (!var)
+            diag.report(expr->getLoc(), DiagID::err_addrof_target_not_var);
+
+        evaluate(var);
+        // Mark this as a WRITE VarExpr because taking an address of a variable
+        // essentially returns an alloca, just as we do for assignment targets.
+        var->setVarExprKind(VarExpr::VarExprKind::Write);
+
+        auto* exprTy = e->getType();
+        expr->setType(new PointerType(exprTy));
+    } else {
+        // We can only dereference a VarExpr...
+        if (!llvm::isa<VarExpr>(e))
+            diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_var);
+
+        evaluate(e);
+
+        // ... of pointer type.
+        auto* exprTy = llvm::dyn_cast<PointerType>(e->getType());
+        if (!exprTy)
+            diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_var);
+
+        expr->setType(exprTy->getPointeeType());
+    }
+}
+
 void SemaCheck::visit(UnaryExpr* expr) {
     evaluate(expr->getExpr());
 
@@ -132,6 +171,10 @@ void SemaCheck::visit(VarExpr* expr) {
     auto* varDeclCast = llvm::dyn_cast<VarDecl>(varDecl);
     assert(varDeclCast && "This must be a VarDecl");
     expr->setType(varDeclCast->getType());
+
+    // Set the VarExpr as WRITE, if it is the target of the assignment expression.
+    if (assignLeftSide)
+        expr->setVarExprKind(VarExpr::VarExprKind::Write);
 }
 
 void SemaCheck::visit(ExprStmt* stmt) { evaluate(stmt->getExpr()); }

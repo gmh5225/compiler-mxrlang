@@ -274,19 +274,12 @@ Expr* Parser::expression() {
 Expr* Parser::assignment() {
     auto* expr = logicalOr();
 
-    Exprs dests;
-    Expr* source = nullptr;
-
-    while (match(TokenKind::colonequal)) {
-        source = logicalOr();
-        dests.push_back(expr);
-        expr = source;
+    if (match(TokenKind::colonequal)) {
+        auto* source = logicalOr();
+        expr = new AssignExpr(expr, source, expr->getLoc());
     }
 
-    if (!dests.empty())
-        return new AssignExpr(dests, source, expr->getLoc());
-    else
-        return expr;
+    return expr;
 }
 
 Expr* Parser::logicalOr() {

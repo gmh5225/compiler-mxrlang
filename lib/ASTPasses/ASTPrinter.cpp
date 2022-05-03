@@ -24,10 +24,7 @@ void ASTPrinter::printVar(VarDecl* stmt) {
 // (= (dest, dest, dest, ....) (source))
 void ASTPrinter::visit(AssignExpr* expr) {
     out() << "(= ";
-    for (auto* dest : expr->getDests()) {
-        evaluate(dest);
-        out() << " ";
-    }
+    evaluate(expr->getDest());
     out() << " ";
     evaluate(expr->getSource());
     out() << ")";

@@ -41,11 +41,9 @@ void CodeGen::visit(AssignExpr* expr) {
     evaluate(expr->getSource());
     auto* source = interResult;
 
-    for (auto* dest : expr->getDests()) {
-        evaluate(dest);
-        auto* destVal = interResult;
-        builder.CreateStore(source, destVal);
-    }
+    evaluate(expr->getDest());
+    auto* destVal = interResult;
+    builder.CreateStore(source, destVal);
 }
 
 void CodeGen::visit(BinaryArithExpr *expr) {

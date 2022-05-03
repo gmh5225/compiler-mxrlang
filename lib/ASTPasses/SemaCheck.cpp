@@ -5,20 +5,19 @@ using namespace mxrlang;
 void SemaCheck::visit(AssignExpr* expr) {
     evaluate(expr->getSource());
 
-    // Evaluating all assignment destinations.
+    // Evaluating assignment destination.
     assignLeftSide = true;
-    for (auto* dest : expr->getDests()) {
-        if (!dest->isValidAssignDest())
-            diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
+    if (!expr->getDest()->isValidAssignDest())
+        diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
 
-        evaluate(dest);
+    evaluate(expr->getDest());
 
-        if (!Type::checkTypesMatching(dest->getType(),
-                                      expr->getSource()->getType()))
-            diag.report(expr->getLoc(), DiagID::err_incompatible_types);
+    if (!Type::checkTypesMatching(expr->getDest()->getType(),
+                                  expr->getSource()->getType()))
+        diag.report(expr->getLoc(), DiagID::err_incompatible_types);
 
-        expr->setType(dest->getType());
-    }
+    expr->setType(expr->getDest()->getType());
+
     assignLeftSide = false;
 }
 

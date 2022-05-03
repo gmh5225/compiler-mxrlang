@@ -210,21 +210,20 @@ public:
 
 // Describes an assignment (e.g. x := 5).
 class AssignExpr : public Expr {
-    Exprs dests;
+    Expr* dest;
     Expr* source;
 
 public:
-    AssignExpr(Exprs dests, Expr* source, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Assign, loc, parent), dests(dests), source(source) {
-        for (auto* dest : dests)
-            dest->setParent(this);
+    AssignExpr(Expr* dest, Expr* source, llvm::SMLoc loc, Node* parent = nullptr)
+        : Expr(ExprKind::Assign, loc, parent), dest(dest), source(source) {
+        dest->setParent(this);
         source->setParent(this);
     }
 
-    Exprs getDests() const { return dests; }
+    Expr* getDest() const { return dest; }
     Expr* getSource() const { return source; }
 
-    void setDests(Exprs dests) { this->dests = dests; }
+    void setDest(Expr* dests) { this->dest = dest; }
     void setSource(Expr* source) { this->source = source; }
 
     ACCEPT()

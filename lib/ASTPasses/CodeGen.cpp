@@ -151,11 +151,11 @@ void CodeGen::visit(PointerOpExpr* expr) {
         evaluate(expr->getExpr());
     } else {
         evaluate(expr->getExpr());
-        auto* pointerLLVMTy =
-            llvm::dyn_cast<llvm::PointerType>(interResult->getType());
-        assert(pointerLLVMTy && "Dereferencing a non-pointer type.");
+        auto* pointerTy =
+            llvm::dyn_cast<PointerType>(expr->getExpr()->getType());
+        assert(pointerTy && "Dereferencing a non-pointer type.");
 
-        interResult = builder.CreateLoad(pointerLLVMTy->getElementType(),
+        interResult = builder.CreateLoad(pointerTy->getLLVMType(ctx),
                                          interResult);
     }
 }

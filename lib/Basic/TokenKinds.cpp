@@ -1,4 +1,5 @@
 #include "llvm/Support/ErrorHandling.h"
+#include <cstdint>
 
 #include "TokenKinds.h"
 

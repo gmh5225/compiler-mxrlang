@@ -20,15 +20,6 @@ class Parser {
 
     Diag& diag;
 
-    // Denotes whether we are processing parts of the AST in which
-    // we need to load the values we get by the subtree evaluation, instead
-    // of just passing them upwards.
-    // Some of the expressions are ambiguous in a way that they can be treated
-    // differently depending on the surrounding context (e.g. parsing assignments,
-    // pointer operations, etc).
-    // This flag is propagating the context downwards through the AST.
-    bool mustLoad = false;
-
     // If the next token matches the expected, advance the token stream.
     bool match(TokenKind kind);
     // Whether the next token matches the expected.

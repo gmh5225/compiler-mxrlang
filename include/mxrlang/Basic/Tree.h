@@ -226,7 +226,7 @@ public:
     Expr* getDest() const { return dest; }
     Expr* getSource() const { return source; }
 
-    void setDest(Expr* dests) { this->dest = dest; }
+    void setDest(Expr* dest) { this->dest = dest; }
     void setSource(Expr* source) { this->source = source; }
 
     ACCEPT()
@@ -584,15 +584,17 @@ public:
 
 // Statement node describing a built-in SCAN function call.
 class ScanStmt : public Stmt {
-    VarExpr* scanVar;
+    Expr* scanVar;
 
 public:
-    ScanStmt(VarExpr* scanVar, llvm::SMLoc loc, Node* parent = nullptr)
+    ScanStmt(Expr* scanVar, llvm::SMLoc loc, Node* parent = nullptr)
         : Stmt(StmtKind::Scan, loc, parent), scanVar(scanVar) {
         scanVar->setParent(this);
     }
 
-    VarExpr* getScanVar() { return scanVar; }
+    Expr* getScanVar() { return scanVar; }
+
+    void setScanVar(Expr* scanVar) { this->scanVar = scanVar; }
 
     ACCEPT()
     CLASSOF(Stmt, Scan)

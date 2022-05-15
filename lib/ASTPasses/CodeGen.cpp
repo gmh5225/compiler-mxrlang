@@ -248,9 +248,9 @@ void CodeGen::visit(ReturnStmt* stmt) {
 
 void CodeGen::visit(ScanStmt* stmt) {
     // Get the alloca for the scanned variable and pass it as a scanf parameter.
-    auto* valAlloca = env->find(stmt->getScanVar()->getName());
+    evaluate(stmt->getScanVar());
 
-    builder.CreateCall(scanFun, {scanFormatStr, valAlloca}, "scan");
+    builder.CreateCall(scanFun, {scanFormatStr, interResult}, "scan");
 }
 
 void CodeGen::visit(UntilStmt* stmt) {

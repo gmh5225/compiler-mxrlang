@@ -240,9 +240,7 @@ Stmt* Parser::untilStmt() {
 }
 
 Stmt* Parser::printStmt() {
-    mustLoad = true;
     Expr* printExpr = expression();
-    mustLoad = false;
 
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new PrintStmt(printExpr, previous().getLocation());
@@ -251,11 +249,8 @@ Stmt* Parser::printStmt() {
 Stmt* Parser::returnStmt() {
     Expr* retExpr = nullptr;
 
-    if (!check(TokenKind::semicolon)) {
-        mustLoad = true;
+    if (!check(TokenKind::semicolon))
         retExpr = expression();
-        mustLoad = false;
-    }
 
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new ReturnStmt(retExpr, previous().getLocation());
@@ -264,12 +259,11 @@ Stmt* Parser::returnStmt() {
 Stmt* Parser::scanStmt() {
     Expr* scanExpr = expression();
 
-    if (!llvm::isa<VarExpr>(scanExpr))
+    if (!llvm::isa<LoadExpr>(scanExpr))
         throw error(peek(), DiagID::err_expect, "variable"s);
 
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
-    return new ScanStmt(llvm::dyn_cast<VarExpr>(scanExpr),
-                        previous().getLocation());
+    return new ScanStmt(scanExpr, previous().getLocation());
 }
 
 Expr* Parser::expression() {
@@ -280,9 +274,7 @@ Expr* Parser::assignment() {
     auto* expr = logicalOr();
 
     if (match(TokenKind::colonequal)) {
-        mustLoad = true;
         auto* source = logicalOr();
-        mustLoad = false;
         expr = new AssignExpr(expr, source, expr->getLoc());
     }
 
@@ -447,7 +439,6 @@ Expr* Parser::unary() {
 
     if (match(TokenKind::ampersand) || match(TokenKind::star)) {
         auto opString = previous().getData();
-        auto oldMustLoad = mustLoad;
         PointerOpExpr::PointerOpKind kind;
         switch (previous().getKind()) {
         case TokenKind::ampersand:
@@ -460,12 +451,9 @@ Expr* Parser::unary() {
             llvm_unreachable("Wrong pointer operation.");
         }
 
-        mustLoad = false;
         Expr* expr = primary();
-        mustLoad = oldMustLoad;
         expr = new PointerOpExpr(kind, expr, opString, previous().getLocation());
-        if (mustLoad &&
-            kind == PointerOpExpr::PointerOpKind::Dereference)
+        if (kind == PointerOpExpr::PointerOpKind::Dereference)
             expr = new LoadExpr(expr, previous().getLocation());
 
         return expr;
@@ -515,10 +503,9 @@ Expr* Parser::identifier() {
     } else {
         // Otherwise, it's a variable access.
         Expr* expr = new VarExpr(name.getData(), name.getLocation());
-        // If we are processing the right side of the assignment expression,
-        // we need to load the variable.
-        if (mustLoad)
-            expr = new LoadExpr(expr, name.getLocation());
+        // Always load the variable for now. Semantic check will remove redundant
+        // loads.
+        expr = new LoadExpr(expr, name.getLocation());
         return expr;
     }
 }

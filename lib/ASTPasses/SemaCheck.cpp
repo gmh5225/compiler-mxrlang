@@ -5,6 +5,13 @@ using namespace mxrlang;
 void SemaCheck::visit(AssignExpr* expr) {
     evaluate(expr->getSource());
 
+    // If the destination is LoadExpr, remove it from the AST, since we do not
+    // load the values we are assigning to.
+    if (auto* loadExpr = llvm::dyn_cast<LoadExpr>(expr->getDest())) {
+        expr->setDest(loadExpr->getExpr());
+        delete loadExpr;
+    }
+
     // Evaluating assignment destination.
     if (!expr->getDest()->isValidAssignDest())
         diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
@@ -112,8 +119,22 @@ void SemaCheck::visit(LoadExpr* expr) {
 }
 
 void SemaCheck::visit(PointerOpExpr* expr) {
+    // We don't need to load a variable before dereferencing it/taking its address.
+    //
+    // PointerOpExpr -> LoadExpr -> VarExpr
+    // |
+    // v
+    // PointerOpExpr -> VarExpr
+    //
+    // After dereferencing, we will load the value if needed.
+    if (auto* loadExpr = llvm::dyn_cast<LoadExpr>(expr->getExpr())) {
+        expr->setExpr(loadExpr->getExpr());
+        delete loadExpr;
+    }
+
     auto* e = expr->getExpr();
     auto kind = expr->getPointerOpKind();
+
     if (kind == PointerOpExpr::PointerOpKind::AddressOf) {
         // We can only take the address of a VarExpr.
         auto* var = llvm::dyn_cast<VarExpr>(e);
@@ -122,17 +143,18 @@ void SemaCheck::visit(PointerOpExpr* expr) {
 
         evaluate(var);
 
-        auto* exprTy = e->getType();
+        auto* exprTy = var->getType();
         expr->setType(new PointerType(exprTy));
     } else {
-        // We can only dereference a VarExpr...
-        if (!llvm::isa<VarExpr>(e) && !llvm::isa<LoadExpr>(e))
+        // We can only dereference a VarExpr (through LoadExpr)...
+        auto* var = llvm::dyn_cast<VarExpr>(e);
+        if (!var)
             diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_var);
 
-        evaluate(e);
+        evaluate(var);
 
         // ... of pointer type.
-        auto* exprTy = llvm::dyn_cast<PointerType>(e->getType());
+        auto* exprTy = llvm::dyn_cast<PointerType>(var->getType());
         if (!exprTy)
             diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_var);
 
@@ -214,6 +236,13 @@ void SemaCheck::visit(ReturnStmt* stmt) {
 
 void SemaCheck::visit(ScanStmt* stmt) {
     evaluate(stmt->getScanVar());
+
+    // Don't load an expression here, because the expression being scanned
+    // is essentially being assigned to.
+    if (auto* loadExpr = llvm::dyn_cast<LoadExpr>(stmt->getScanVar())) {
+        stmt->setScanVar(loadExpr->getExpr());
+        delete loadExpr;
+    }
 }
 
 void SemaCheck::visit(UntilStmt* stmt) {

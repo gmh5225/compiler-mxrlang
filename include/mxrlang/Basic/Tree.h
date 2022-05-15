@@ -36,6 +36,7 @@ class BoolLiteralExpr;
 class CallExpr;
 class GroupingExpr;
 class IntLiteralExpr;
+class LoadExpr;
 class PointerOpExpr;
 class UnaryExpr;
 class VarExpr;
@@ -69,6 +70,7 @@ public:
     virtual void visit(CallExpr* expr) = 0;
     virtual void visit(GroupingExpr* expr) = 0;
     virtual void visit(IntLiteralExpr* expr) = 0;
+    virtual void visit(LoadExpr* expr) = 0;
     virtual void visit(PointerOpExpr* expr) = 0;
     virtual void visit(UnaryExpr* expr) = 0;
     virtual void visit(VarExpr* expr) = 0;
@@ -129,6 +131,7 @@ public:
         Call,
         Grouping,
         IntLiteral,
+        Load,
         PointerOp,
         Unary,
         Var
@@ -388,6 +391,27 @@ public:
     CLASSOF(Expr, IntLiteral)
 };
 
+// LoadExpr is not syntactically tied to the language. It's used more as a
+// notation node which tells us that during code generation, the value which
+// is evaluated from LoadExpr's subtree, must be loaded from memory, to be used
+// further in the program.
+class LoadExpr : public Expr {
+    Expr* expr;
+
+public:
+    LoadExpr(Expr* expr, llvm::SMLoc loc, Node* parent = nullptr)
+        : Expr(ExprKind::Load, loc, parent), expr(expr) {
+        expr->setParent(this);
+    }
+
+    Expr* getExpr() const { return expr; }
+
+    void setExpr(Expr* expr) { this->expr = expr; }
+
+    ACCEPT()
+    CLASSOF(Expr, Load)
+};
+
 // Describes an operation on a pointer (addres-of/dereference).
 class PointerOpExpr : public Expr {
 public:
@@ -459,26 +483,13 @@ public:
 
 // Describes a variable acces (either to read or to write).
 class VarExpr : public Expr {
-public:
-    enum class VarExprKind {
-        Read,
-        Write
-    };
-
-private:
     llvm::StringRef name;
-    // Denotes whether we use this access as a read or a write.
-    VarExprKind varExprKind;
 
 public:
     VarExpr(llvm::StringRef name, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Var, loc, parent), name(name),
-          varExprKind(VarExprKind::Read) {}
+        : Expr(ExprKind::Var, loc, parent), name(name) {}
 
     const llvm::StringRef& getName() const { return name; }
-    VarExprKind getVarExprKind() const { return varExprKind; }
-
-    void setVarExprKind(VarExprKind kind) { varExprKind = kind; }
 
     ACCEPT()
     CLASSOF(Expr, Var)

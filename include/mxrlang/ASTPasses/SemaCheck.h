@@ -17,11 +17,6 @@ class SemaCheck : public Visitor {
     // Flags whether we've seen a return statement in a function.
     bool seenReturn = false;
 
-    // Denotes whether we are processing the left side of the
-    // assignment expression. This is used to mark the VarExpr's as STORE during
-    // the semantic check.
-    bool assignLeftSide = false;
-
     // Currently checked function.
     FunDecl* currFun = nullptr;
 
@@ -33,6 +28,7 @@ class SemaCheck : public Visitor {
     void visit(CallExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
+    void visit(LoadExpr* expr) override;
     void visit(PointerOpExpr* expr) override;
     void visit(UnaryExpr* expr) override;
     void visit(VarExpr* expr) override;

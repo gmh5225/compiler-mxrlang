@@ -71,6 +71,13 @@ void ASTPrinter::visit(IntLiteralExpr* expr) {
               expr->getType()->toString() + ")";
 }
 
+// (load var)
+void ASTPrinter::visit(LoadExpr* expr) {
+    out() << "(load ";
+    evaluate(expr->getExpr());
+    out() << ")";
+}
+
 // (op (expr))
 void ASTPrinter::visit(PointerOpExpr* expr) {
     out() << "(" + expr->getOpString().str() + " ";

@@ -6,7 +6,6 @@ void SemaCheck::visit(AssignExpr* expr) {
     evaluate(expr->getSource());
 
     // Evaluating assignment destination.
-    assignLeftSide = true;
     if (!expr->getDest()->isValidAssignDest())
         diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
 
@@ -17,8 +16,6 @@ void SemaCheck::visit(AssignExpr* expr) {
         diag.report(expr->getLoc(), DiagID::err_incompatible_types);
 
     expr->setType(expr->getDest()->getType());
-
-    assignLeftSide = false;
 }
 
 void SemaCheck::visit(BinaryArithExpr* expr) {
@@ -109,6 +106,11 @@ void SemaCheck::visit(GroupingExpr* expr) {
 
 void SemaCheck::visit(IntLiteralExpr* expr) {}
 
+void SemaCheck::visit(LoadExpr* expr) {
+    evaluate(expr->getExpr());
+    expr->setType(expr->getExpr()->getType());
+}
+
 void SemaCheck::visit(PointerOpExpr* expr) {
     auto* e = expr->getExpr();
     auto kind = expr->getPointerOpKind();
@@ -119,15 +121,12 @@ void SemaCheck::visit(PointerOpExpr* expr) {
             diag.report(expr->getLoc(), DiagID::err_addrof_target_not_var);
 
         evaluate(var);
-        // Mark this as a WRITE VarExpr because taking an address of a variable
-        // essentially returns an alloca, just as we do for assignment targets.
-        var->setVarExprKind(VarExpr::VarExprKind::Write);
 
         auto* exprTy = e->getType();
         expr->setType(new PointerType(exprTy));
     } else {
         // We can only dereference a VarExpr...
-        if (!llvm::isa<VarExpr>(e))
+        if (!llvm::isa<VarExpr>(e) && !llvm::isa<LoadExpr>(e))
             diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_var);
 
         evaluate(e);
@@ -170,10 +169,6 @@ void SemaCheck::visit(VarExpr* expr) {
     auto* varDeclCast = llvm::dyn_cast<VarDecl>(varDecl);
     assert(varDeclCast && "This must be a VarDecl");
     expr->setType(varDeclCast->getType());
-
-    // Set the VarExpr as WRITE, if it is the target of the assignment expression.
-    if (assignLeftSide)
-        expr->setVarExprKind(VarExpr::VarExprKind::Write);
 }
 
 void SemaCheck::visit(ExprStmt* stmt) { evaluate(stmt->getExpr()); }

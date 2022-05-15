@@ -14,6 +14,7 @@ class ConstFold : public Visitor {
     void visit(CallExpr* expr) override;
     void visit(GroupingExpr* expr) override;
     void visit(IntLiteralExpr* expr) override;
+    void visit(LoadExpr* expr) override;
     void visit(PointerOpExpr* expr) override;
     void visit(UnaryExpr* expr) override;
     void visit(VarExpr* expr) override;

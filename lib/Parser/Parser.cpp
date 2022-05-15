@@ -240,7 +240,9 @@ Stmt* Parser::untilStmt() {
 }
 
 Stmt* Parser::printStmt() {
+    mustLoad = true;
     Expr* printExpr = expression();
+    mustLoad = false;
 
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new PrintStmt(printExpr, previous().getLocation());
@@ -249,8 +251,11 @@ Stmt* Parser::printStmt() {
 Stmt* Parser::returnStmt() {
     Expr* retExpr = nullptr;
 
-    if (!check(TokenKind::semicolon))
+    if (!check(TokenKind::semicolon)) {
+        mustLoad = true;
         retExpr = expression();
+        mustLoad = false;
+    }
 
     consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
     return new ReturnStmt(retExpr, previous().getLocation());
@@ -275,7 +280,9 @@ Expr* Parser::assignment() {
     auto* expr = logicalOr();
 
     if (match(TokenKind::colonequal)) {
+        mustLoad = true;
         auto* source = logicalOr();
+        mustLoad = false;
         expr = new AssignExpr(expr, source, expr->getLoc());
     }
 
@@ -440,6 +447,7 @@ Expr* Parser::unary() {
 
     if (match(TokenKind::ampersand) || match(TokenKind::star)) {
         auto opString = previous().getData();
+        auto oldMustLoad = mustLoad;
         PointerOpExpr::PointerOpKind kind;
         switch (previous().getKind()) {
         case TokenKind::ampersand:
@@ -452,8 +460,15 @@ Expr* Parser::unary() {
             llvm_unreachable("Wrong pointer operation.");
         }
 
-        auto* expr = primary();
-        return new PointerOpExpr(kind, expr, opString, previous().getLocation());
+        mustLoad = false;
+        Expr* expr = primary();
+        mustLoad = oldMustLoad;
+        expr = new PointerOpExpr(kind, expr, opString, previous().getLocation());
+        if (mustLoad &&
+            kind == PointerOpExpr::PointerOpKind::Dereference)
+            expr = new LoadExpr(expr, previous().getLocation());
+
+        return expr;
     }
 
     return primary();
@@ -499,7 +514,12 @@ Expr* Parser::identifier() {
                             name.getLocation());
     } else {
         // Otherwise, it's a variable access.
-        return new VarExpr(name.getData(), name.getLocation());
+        Expr* expr = new VarExpr(name.getData(), name.getLocation());
+        // If we are processing the right side of the assignment expression,
+        // we need to load the variable.
+        if (mustLoad)
+            expr = new LoadExpr(expr, name.getLocation());
+        return expr;
     }
 }
 

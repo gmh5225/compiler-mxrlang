@@ -169,6 +169,15 @@ void ConstFold::visit(GroupingExpr* expr) {
 
 void ConstFold::visit(IntLiteralExpr* expr) {}
 
+void ConstFold::visit(LoadExpr* expr) {
+    evaluate(expr->getExpr());
+    if (swap) {
+        delete expr->getExpr();
+        expr->setExpr(swap);
+        swap = nullptr;
+    }
+}
+
 void ConstFold::visit(PointerOpExpr* expr) {}
 
 void ConstFold::visit(UnaryExpr* expr) {

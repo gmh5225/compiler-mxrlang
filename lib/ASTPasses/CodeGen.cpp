@@ -141,6 +141,13 @@ void CodeGen::visit(IntLiteralExpr* expr) {
     interResult = lit;
 }
 
+void CodeGen::visit(LoadExpr* expr) {
+    evaluate(expr->getExpr());
+
+    interResult = builder.CreateLoad(expr->getType()->getLLVMType(ctx),
+                                     interResult);
+}
+
 void CodeGen::visit(PointerOpExpr* expr) {
     auto kind = expr->getPointerOpKind();
     if (kind == PointerOpExpr::PointerOpKind::AddressOf) {
@@ -177,12 +184,7 @@ void CodeGen::visit(VarExpr* expr) {
     auto* valAlloca = env->find(expr->getName());
     assert(valAlloca && "Undefined alloca");
 
-    if (expr->getVarExprKind() == VarExpr::VarExprKind::Read)
-        interResult = builder.CreateLoad(expr->getType()->getLLVMType(ctx),
-                                         valAlloca,
-                                         expr->getName());
-    else
-        interResult = valAlloca;
+    interResult = valAlloca;
 }
 
 void CodeGen::visit(ExprStmt* stmt) {

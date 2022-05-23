@@ -1,7 +1,7 @@
 #include "Diag.h"
 
 namespace mxrlang {
-const char* diagText[] = {
+const char *diagText[] = {
 #define DIAG(ID, Level, Msg) Msg,
 #include "Diag.def"
 };
@@ -13,10 +13,10 @@ llvm::SourceMgr::DiagKind diagKind[] = {
 
 using namespace mxrlang;
 
-const char* Diag::getDiagText(DiagID diagID) {
-    return diagText[static_cast<uint32_t>(diagID)];
+const char *Diag::getDiagText(DiagID diagID) {
+  return diagText[static_cast<uint32_t>(diagID)];
 }
 
 llvm::SourceMgr::DiagKind Diag::getDiagKind(DiagID diagID) {
-    return diagKind[static_cast<uint32_t>(diagID)];
+  return diagKind[static_cast<uint32_t>(diagID)];
 }

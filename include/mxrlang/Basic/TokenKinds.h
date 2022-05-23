@@ -6,12 +6,12 @@ namespace mxrlang {
 enum class TokenKind {
 #define TOK(ID) ID,
 #include "TokenKinds.def"
-    NUM_TOKENS
+  NUM_TOKENS
 };
 
-const char* getTokenName(TokenKind kind);
-const char* getPunctuatorSpelling(TokenKind kind);
-const char* getKeywordSpelling(TokenKind kind);
+const char *getTokenName(TokenKind kind);
+const char *getPunctuatorSpelling(TokenKind kind);
+const char *getKeywordSpelling(TokenKind kind);
 
 } // namespace mxrlang
 

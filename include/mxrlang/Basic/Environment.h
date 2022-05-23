@@ -8,40 +8,39 @@
 namespace mxrlang {
 
 // Models the scope.
-template <typename T>
-class Environment {
-    llvm::StringMap<T*> values;
+template <typename T> class Environment {
+  llvm::StringMap<T *> values;
 
-    // Parent scope in the scope chain.
-    Environment* parent = nullptr;
+  // Parent scope in the scope chain.
+  Environment *parent = nullptr;
 
 public:
-    Environment(Environment* parent) : parent(parent) {}
+  Environment(Environment *parent) : parent(parent) {}
 
-    // Insert a value in the current scope.
-    bool insert(T* value, llvm::StringRef name) {
-        auto v = values.find(name);
-        if (v != values.end())
-            return false;
+  // Insert a value in the current scope.
+  bool insert(T *value, llvm::StringRef name) {
+    auto v = values.find(name);
+    if (v != values.end())
+      return false;
 
-        values[name] = value;
-        return true;
-    }
+    values[name] = value;
+    return true;
+  }
 
-    // Find the value in the current scope. If it doesn't exist,
-    // search the parent scopes.
-    T* find(llvm::StringRef name) {
-        auto v = values.find(name);
-        if (v != values.end())
-            return v->second;
+  // Find the value in the current scope. If it doesn't exist,
+  // search the parent scopes.
+  T *find(llvm::StringRef name) {
+    auto v = values.find(name);
+    if (v != values.end())
+      return v->second;
 
-        if (!parent)
-            return nullptr;
+    if (!parent)
+      return nullptr;
 
-        return parent->find(name);
-    }
+    return parent->find(name);
+  }
 
-    Environment* getParent() { return parent; }
+  Environment *getParent() { return parent; }
 };
 
 } // namespace mxrlang

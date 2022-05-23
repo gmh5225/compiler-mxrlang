@@ -16,26 +16,25 @@ enum class DiagID {
 };
 
 class Diag {
-    static const char* getDiagText(DiagID diagType);
-    static llvm::SourceMgr::DiagKind getDiagKind(DiagID diagID);
+  static const char *getDiagText(DiagID diagType);
+  static llvm::SourceMgr::DiagKind getDiagKind(DiagID diagID);
 
-    llvm::SourceMgr& srcMgr;
-    uint32_t numErrs;
+  llvm::SourceMgr &srcMgr;
+  uint32_t numErrs;
 
 public:
-    Diag(llvm::SourceMgr& srcMgr) : srcMgr(srcMgr), numErrs(0) {}
+  Diag(llvm::SourceMgr &srcMgr) : srcMgr(srcMgr), numErrs(0) {}
 
-    uint32_t getNumErrs() { return numErrs; }
+  uint32_t getNumErrs() { return numErrs; }
 
-    template <typename... Args>
-    void report(llvm::SMLoc loc, DiagID diagID, Args&&... args) {
-        auto msg = llvm::formatv(getDiagText(diagID),
-                                 std::forward<Args>(args)...)
-                .str();
-        auto kind = getDiagKind(diagID);
-        srcMgr.PrintMessage(loc, kind, msg);
-        numErrs += (kind == llvm::SourceMgr::DK_Error);
-    }
+  template <typename... Args>
+  void report(llvm::SMLoc loc, DiagID diagID, Args &&...args) {
+    auto msg =
+        llvm::formatv(getDiagText(diagID), std::forward<Args>(args)...).str();
+    auto kind = getDiagKind(diagID);
+    srcMgr.PrintMessage(loc, kind, msg);
+    numErrs += (kind == llvm::SourceMgr::DK_Error);
+  }
 };
 
 } // namespace mxrlang

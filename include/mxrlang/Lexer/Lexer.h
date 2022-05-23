@@ -12,58 +12,59 @@
 namespace mxrlang {
 
 class KeywordFilter {
-    llvm::StringMap<TokenKind> kwTable;
+  llvm::StringMap<TokenKind> kwTable;
 
-    void addKeyword(llvm::StringRef kw, TokenKind kind);
+  void addKeyword(llvm::StringRef kw, TokenKind kind);
 
 public:
-    void addKeywords();
+  void addKeywords();
 
-    TokenKind getKeyword(llvm::StringRef name,
-                         TokenKind defaultTokKind = TokenKind::unknown) {
-        auto result = kwTable.find(name);
-        if (result != kwTable.end())
-            return result->second;
-        return defaultTokKind;
-    }
+  TokenKind getKeyword(llvm::StringRef name,
+                       TokenKind defaultTokKind = TokenKind::unknown) {
+    auto result = kwTable.find(name);
+    if (result != kwTable.end())
+      return result->second;
+    return defaultTokKind;
+  }
 };
 
 class Lexer {
-    llvm::SourceMgr& srcMgr;
-    Diag& diag;
+  llvm::SourceMgr &srcMgr;
+  Diag &diag;
 
-    const char* currPtr;
-    llvm::StringRef currBuff;
+  const char *currPtr;
+  llvm::StringRef currBuff;
 
-    // This is the current buffer index we're
-    // lexing from as managed by the SourceMgr object.
-    uint32_t currBuffer = 0;
+  // This is the current buffer index we're
+  // lexing from as managed by the SourceMgr object.
+  uint32_t currBuffer = 0;
 
-    KeywordFilter keywords;
+  KeywordFilter keywords;
 
-    Tokens tokens;
+  Tokens tokens;
 
 public:
-    Lexer(llvm::SourceMgr& srcMgr, Diag& diag) : srcMgr(srcMgr), diag(diag) {
-        currBuffer = srcMgr.getMainFileID();
-        currBuff = srcMgr.getMemoryBuffer(currBuffer)->getBuffer();
-        currPtr = currBuff.begin();
-        keywords.addKeywords();
-    }
+  Lexer(llvm::SourceMgr &srcMgr, Diag &diag) : srcMgr(srcMgr), diag(diag) {
+    currBuffer = srcMgr.getMainFileID();
+    currBuff = srcMgr.getMemoryBuffer(currBuffer)->getBuffer();
+    currPtr = currBuff.begin();
+    keywords.addKeywords();
+  }
 
-    Diag& getDiag() { return diag; }
+  Diag &getDiag() { return diag; }
 
-    llvm::StringRef getBuffer() const { return currBuff; }
+  llvm::StringRef getBuffer() const { return currBuff; }
 
-    Tokens&& lex();
+  Tokens &&lex();
+
 private:
-    void identifier(Token& result);
-    void number(Token& result);
+  void identifier(Token &result);
+  void number(Token &result);
 
-    llvm::SMLoc getLoc() { return llvm::SMLoc::getFromPointer(currPtr); }
+  llvm::SMLoc getLoc() { return llvm::SMLoc::getFromPointer(currPtr); }
 
-    void formToken(Token& result, const char* tokEnd, TokenKind kind);
-    void next(Token& result);
+  void formToken(Token &result, const char *tokEnd, TokenKind kind);
+  void next(Token &result);
 };
 
 } // namespace mxrlang

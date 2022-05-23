@@ -16,7 +16,6 @@
 
 #include "ASTPrinter.h"
 #include "CodeGen.h"
-#include "ConstFold.h"
 #include "Diag.h"
 #include "Lexer.h"
 #include "Parser.h"
@@ -190,10 +189,6 @@ int main(int argc_, const char **argv_) {
         // Helper pass which prints the AST.
         ASTPrinter astPrinter;
         astPrinter.run(moduleDecl);
-
-        // Create and run the constant folding pass.
-        ConstFold constFold;
-        constFold.run(moduleDecl);
 
         // Run the printer again to see the results of the const folding pass.
         astPrinter.run(moduleDecl);

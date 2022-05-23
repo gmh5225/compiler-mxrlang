@@ -102,12 +102,8 @@ private:
     // reporting.
     llvm::SMLoc loc;
 
-    // Parent node of this node.
-    Node* parent;
-
 public:
-    Node(NodeKind kind, llvm::SMLoc loc, Node* parent = nullptr)
-        : kind(kind), loc(loc), parent(parent) {}
+    Node(NodeKind kind, llvm::SMLoc loc) : kind(kind), loc(loc) {}
     virtual ~Node() = default;
 
     // Pure virtual accept method of the visitor pattern.
@@ -115,9 +111,6 @@ public:
 
     NodeKind getKind() const { return kind; }
     llvm::SMLoc getLoc() const { return loc; }
-    Node* getParent() { return parent; }
-
-    void setParent(Node* parent) { this->parent = parent; }
 };
 
 // Expr class describes expression nodes of the AST.
@@ -143,9 +136,8 @@ private:
     Type* type;
 
 public:
-    Expr(ExprKind kind, llvm::SMLoc loc, Node* parent = nullptr,
-         Type* type = Type::getNoneType())
-        : Node(NodeKind::Expr, loc, parent), kind(kind), type(type) {}
+    Expr(ExprKind kind, llvm::SMLoc loc, Type* type = Type::getNoneType())
+        : Node(NodeKind::Expr, loc), kind(kind), type(type) {}
 
     // Check whether this is a valid target of an assignment.
     // Can be overridden by valid targets (eg. VariableExpr) to return an
@@ -178,8 +170,8 @@ private:
     StmtKind kind;
 
 public:
-    Stmt(StmtKind kind, llvm::SMLoc loc, Node* parent = nullptr)
-        : Node(NodeKind::Stmt, loc, parent), kind(kind) {}
+    Stmt(StmtKind kind, llvm::SMLoc loc)
+        : Node(NodeKind::Stmt, loc), kind(kind) {}
 
     StmtKind getKind() const { return kind; }
 
@@ -201,9 +193,8 @@ private:
     llvm::StringRef name;
 
 public:
-    Decl(DeclKind kind, llvm::StringRef name, llvm::SMLoc loc,
-         Node* parent = nullptr)
-        : Node(NodeKind::Decl, loc, parent), kind(kind), name(name) {}
+    Decl(DeclKind kind, llvm::StringRef name, llvm::SMLoc loc)
+        : Node(NodeKind::Decl, loc), kind(kind), name(name) {}
 
     DeclKind getKind() const { return kind; }
     llvm::StringRef getName() const { return name; }
@@ -217,11 +208,8 @@ class AssignExpr : public Expr {
     Expr* source;
 
 public:
-    AssignExpr(Expr* dest, Expr* source, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Assign, loc, parent), dest(dest), source(source) {
-        dest->setParent(this);
-        source->setParent(this);
-    }
+    AssignExpr(Expr* dest, Expr* source, llvm::SMLoc loc)
+        : Expr(ExprKind::Assign, loc), dest(dest), source(source) {}
 
     Expr* getDest() const { return dest; }
     Expr* getSource() const { return source; }
@@ -252,13 +240,9 @@ private:
 
 public:
     BinaryArithExpr(BinaryArithExprKind binKind, Expr* left, Expr* right,
-                    llvm::StringRef opString, llvm::SMLoc loc,
-                    Node* parent = nullptr)
-        : Expr(ExprKind::BinaryArith, loc, parent), binKind(binKind), left(left),
-          right(right), opString(opString) {
-        left->setParent(this);
-        right->setParent(this);
-    }
+                    llvm::StringRef opString, llvm::SMLoc loc)
+        : Expr(ExprKind::BinaryArith, loc), binKind(binKind), left(left),
+          right(right), opString(opString) {}
 
     BinaryArithExprKind getBinaryKind() const { return binKind; }
     Expr* getLeft() const { return left; }
@@ -295,13 +279,9 @@ private:
 
 public:
     BinaryLogicalExpr(BinaryLogicalExprKind binKind, Expr* left, Expr* right,
-                      llvm::StringRef opString, llvm::SMLoc loc,
-                      Node* parent = nullptr)
-        : Expr(ExprKind::BinaryLogical, loc, parent), binKind(binKind), left(left),
-          right(right), opString(opString) {
-        left->setParent(this);
-        right->setParent(this);
-    }
+                      llvm::StringRef opString, llvm::SMLoc loc)
+        : Expr(ExprKind::BinaryLogical, loc), binKind(binKind), left(left),
+          right(right), opString(opString) {}
 
     BinaryLogicalExprKind getBinaryKind() const { return binKind; }
     Expr* getLeft() const { return left; }
@@ -320,8 +300,8 @@ class BoolLiteralExpr : public Expr {
     bool value;
 
 public:
-    BoolLiteralExpr(bool value, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::BoolLiteral, loc, parent, Type::getBoolType()),
+    BoolLiteralExpr(bool value, llvm::SMLoc loc)
+        : Expr(ExprKind::BoolLiteral, loc, Type::getBoolType()),
           value(value) {}
 
     bool getValue() const { return value; }
@@ -336,13 +316,9 @@ class CallExpr : public Expr {
     FunCallArgs args;
 
 public:
-    CallExpr(llvm::StringRef funName, FunCallArgs&& args, llvm::SMLoc loc,
-             Node* parent = nullptr)
-        : Expr(ExprKind::Call, loc, parent), funName(funName),
-          args(std::move(args)) {
-        for (auto* arg : args)
-            arg->setParent(this);
-    }
+    CallExpr(llvm::StringRef funName, FunCallArgs&& args, llvm::SMLoc loc)
+        : Expr(ExprKind::Call, loc), funName(funName),
+          args(std::move(args)) {}
 
     const llvm::StringRef& getName() const { return funName; }
     FunCallArgs& getArgs() { return args; }
@@ -356,10 +332,8 @@ class GroupingExpr : public Expr {
     Expr* expr;
 
 public:
-    GroupingExpr(Expr* expr, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Grouping, loc, parent), expr(expr) {
-        expr->setParent(this);
-    }
+    GroupingExpr(Expr* expr, llvm::SMLoc loc)
+        : Expr(ExprKind::Grouping, loc), expr(expr) {}
 
     Expr* getExpr() const { return expr; }
 
@@ -374,15 +348,14 @@ class IntLiteralExpr : public Expr {
     llvm::APSInt value;
 
 public:
-    IntLiteralExpr(llvm::StringRef valueString, llvm::SMLoc loc,
-                   Node* parent = nullptr)
-        : Expr(ExprKind::IntLiteral, loc, parent, Type::getIntType()) {
+    IntLiteralExpr(llvm::StringRef valueString, llvm::SMLoc loc)
+        : Expr(ExprKind::IntLiteral, loc, Type::getIntType()) {
         value = llvm::APInt(/* numBits= */ 64, valueString, /* radix= */ 10);
         value.setIsSigned(true);
     }
 
-    IntLiteralExpr(llvm::APSInt value, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::IntLiteral, loc, parent, Type::getIntType()),
+    IntLiteralExpr(llvm::APSInt value, llvm::SMLoc loc)
+        : Expr(ExprKind::IntLiteral, loc, Type::getIntType()),
           value(value) {}
 
     const llvm::APSInt& getValue() const { return value; }
@@ -399,10 +372,8 @@ class LoadExpr : public Expr {
     Expr* expr;
 
 public:
-    LoadExpr(Expr* expr, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Load, loc, parent), expr(expr) {
-        expr->setParent(this);
-    }
+    LoadExpr(Expr* expr, llvm::SMLoc loc)
+        : Expr(ExprKind::Load, loc), expr(expr) {}
 
     Expr* getExpr() const { return expr; }
 
@@ -428,12 +399,9 @@ private:
 
 public:
     PointerOpExpr(PointerOpKind pointerOpKind, Expr* expr,
-                  llvm::StringRef opString, llvm::SMLoc loc,
-                  Node* parent = nullptr)
-        : Expr(ExprKind::PointerOp, loc, parent), pointerOpKind(pointerOpKind),
-          expr(expr), opString(opString) {
-        expr->setParent(this);
-    }
+                  llvm::StringRef opString, llvm::SMLoc loc)
+        : Expr(ExprKind::PointerOp, loc), pointerOpKind(pointerOpKind),
+          expr(expr), opString(opString) {}
 
     PointerOpKind getPointerOpKind() const { return pointerOpKind; }
     Expr* getExpr() const { return expr; }
@@ -465,11 +433,9 @@ private:
 
 public:
     UnaryExpr(UnaryExprKind unaryKind, Expr* expr, llvm::StringRef opString,
-              llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Unary, loc, parent), unaryKind(unaryKind), expr(expr),
-          opString(opString) {
-        expr->setParent(this);
-    }
+              llvm::SMLoc loc)
+        : Expr(ExprKind::Unary, loc), unaryKind(unaryKind), expr(expr),
+          opString(opString) {}
 
     UnaryExprKind getUnaryKind() const { return unaryKind; }
     Expr* getExpr() const { return expr; }
@@ -486,8 +452,8 @@ class VarExpr : public Expr {
     llvm::StringRef name;
 
 public:
-    VarExpr(llvm::StringRef name, llvm::SMLoc loc, Node* parent = nullptr)
-        : Expr(ExprKind::Var, loc, parent), name(name) {}
+    VarExpr(llvm::StringRef name, llvm::SMLoc loc)
+        : Expr(ExprKind::Var, loc), name(name) {}
 
     const llvm::StringRef& getName() const { return name; }
 
@@ -505,10 +471,8 @@ class ExprStmt : public Stmt {
     Expr* expr;
 
 public:
-    ExprStmt(Expr* expr, llvm::SMLoc loc, Node* parent = nullptr)
-        : Stmt(StmtKind::Expr, loc, parent), expr(expr) {
-        expr->setParent(this);
-    }
+    ExprStmt(Expr* expr, llvm::SMLoc loc)
+        : Stmt(StmtKind::Expr, loc), expr(expr) {}
 
     Expr* getExpr() const { return expr; }
 
@@ -525,16 +489,9 @@ class IfStmt : public Stmt {
     Nodes elseBody;
 
 public:
-    IfStmt(Expr* cond, Nodes&& thenBody, Nodes&& elseBody, llvm::SMLoc loc,
-           Node* parent = nullptr)
-        : Stmt(StmtKind::If, loc, parent), cond(cond),
-          thenBody(std::move(thenBody)), elseBody(std::move(elseBody)) {
-        cond->setParent(this);
-        for (auto* stmt : thenBody)
-            stmt->setParent(this);
-        for (auto* stmt : elseBody)
-            stmt->setParent(this);
-    }
+    IfStmt(Expr* cond, Nodes&& thenBody, Nodes&& elseBody, llvm::SMLoc loc)
+        : Stmt(StmtKind::If, loc), cond(cond),
+          thenBody(std::move(thenBody)), elseBody(std::move(elseBody)) {}
 
     Expr* getCond() const { return cond; }
     Nodes& getThenBody() { return thenBody; }
@@ -551,10 +508,8 @@ class PrintStmt : public Stmt {
     Expr* printExpr;
 
 public:
-    PrintStmt(Expr* printExpr, llvm::SMLoc loc, Node* parent = nullptr)
-        : Stmt(StmtKind::Print, loc, parent) , printExpr(printExpr) {
-        printExpr->setParent(this);
-    }
+    PrintStmt(Expr* printExpr, llvm::SMLoc loc)
+        : Stmt(StmtKind::Print, loc) , printExpr(printExpr) {}
 
     Expr* getPrintExpr() const { return printExpr; }
 
@@ -569,10 +524,8 @@ class ReturnStmt : public Stmt {
     Expr* retExpr;
 
 public:
-    ReturnStmt(Expr* retExpr, llvm::SMLoc loc, Node* parent = nullptr)
-        : Stmt(StmtKind::Return, loc, parent), retExpr(retExpr) {
-        retExpr->setParent(this);
-    }
+    ReturnStmt(Expr* retExpr, llvm::SMLoc loc)
+        : Stmt(StmtKind::Return, loc), retExpr(retExpr) {}
 
     Expr* getRetExpr() const { return retExpr; }
 
@@ -587,10 +540,8 @@ class ScanStmt : public Stmt {
     Expr* scanVar;
 
 public:
-    ScanStmt(Expr* scanVar, llvm::SMLoc loc, Node* parent = nullptr)
-        : Stmt(StmtKind::Scan, loc, parent), scanVar(scanVar) {
-        scanVar->setParent(this);
-    }
+    ScanStmt(Expr* scanVar, llvm::SMLoc loc)
+        : Stmt(StmtKind::Scan, loc), scanVar(scanVar) {}
 
     Expr* getScanVar() { return scanVar; }
 
@@ -606,12 +557,8 @@ class UntilStmt : public Stmt {
     Nodes body;
 
 public:
-    UntilStmt(Expr* cond, Nodes&& body, llvm::SMLoc loc, Node* parent = nullptr)
-        : Stmt(StmtKind::Until, loc, parent), cond(cond), body(body) {
-        cond->setParent(this);
-        for (auto* node : body)
-            node->setParent(this);
-    }
+    UntilStmt(Expr* cond, Nodes&& body, llvm::SMLoc loc)
+        : Stmt(StmtKind::Until, loc), cond(cond), body(body) {}
 
     Expr* getCond() const { return cond; }
     Nodes& getBody() { return body; }
@@ -631,10 +578,7 @@ class ModuleDecl : public Decl {
 
 public:
     ModuleDecl(llvm::StringRef name, Decls&& body, llvm::SMLoc loc)
-        : Decl(DeclKind::Module, name, loc, nullptr), body(std::move(body)) {
-        for (auto* decl : body)
-            decl->setParent(this);
-    }
+        : Decl(DeclKind::Module, name, loc), body(std::move(body)) {}
 
     Decls& getBody() { return body; }
 
@@ -651,12 +595,9 @@ class VarDecl : public Decl {
 
 public:
     VarDecl(llvm::StringRef name, Expr* initializer, Type* type, bool global,
-            llvm::SMLoc loc, Node* parent = nullptr)
-        : Decl(DeclKind::Var, name, loc, parent), type(type),
-          initializer(initializer), global(global) {
-        if (initializer)
-            initializer->setParent(this);
-    }
+            llvm::SMLoc loc)
+        : Decl(DeclKind::Var, name, loc), type(type),
+          initializer(initializer), global(global) {}
 
     Type* getType() const { return type; }
     Expr* getInitializer() { return initializer; }
@@ -677,14 +618,9 @@ class FunDecl : public Decl {
 
 public:
     FunDecl(llvm::StringRef name, Type* retType, FunDeclArgs&& args,
-            Nodes&& body, llvm::SMLoc loc, Node* parent = nullptr)
-        : Decl(DeclKind::Fun, name, loc, parent), retType(retType),
-          args(std::move(args)), body(std::move(body)) {
-        for (auto* arg : args)
-            arg->setParent(this);
-        for (auto* node : body)
-            node->setParent(this);
-    }
+            Nodes&& body, llvm::SMLoc loc)
+        : Decl(DeclKind::Fun, name, loc), retType(retType),
+          args(std::move(args)), body(std::move(body)) {}
 
     Type* getRetType() const { return retType; }
     FunDeclArgs& getArgs() { return args; }

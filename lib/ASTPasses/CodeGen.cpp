@@ -19,12 +19,12 @@ void CodeGen::createPrintScanFunctions() {
 }
 
 llvm::FunctionType *CodeGen::createFunctionType(FunDecl *decl) {
-  auto *retTy = decl->getRetType()->getLLVMType(ctx);
+  auto *retTy = decl->getRetType()->toLLVMType(ctx);
 
   // Convert argument types to LLVM types.
   std::vector<llvm::Type *> args;
   for (auto arg : decl->getArgs())
-    args.push_back(arg->getType()->getLLVMType(ctx));
+    args.push_back(arg->getType()->toLLVMType(ctx));
 
   return llvm::FunctionType::get(retTy, args, /*isVarArg*/ false);
 }
@@ -111,7 +111,7 @@ void CodeGen::visit(BinaryLogicalExpr *expr) {
 }
 
 void CodeGen::visit(BoolLiteralExpr *expr) {
-  auto *lit = llvm::ConstantInt::get(expr->getType()->getLLVMType(ctx),
+  auto *lit = llvm::ConstantInt::get(expr->getType()->toLLVMType(ctx),
                                      expr->getValue());
   interResult = lit;
 }
@@ -132,7 +132,7 @@ void CodeGen::visit(CallExpr *expr) {
 void CodeGen::visit(GroupingExpr *expr) { evaluate(expr->getExpr()); }
 
 void CodeGen::visit(IntLiteralExpr *expr) {
-  auto *lit = llvm::ConstantInt::get(expr->getType()->getLLVMType(ctx),
+  auto *lit = llvm::ConstantInt::get(expr->getType()->toLLVMType(ctx),
                                      expr->getValue());
   interResult = lit;
 }
@@ -141,7 +141,7 @@ void CodeGen::visit(LoadExpr *expr) {
   evaluate(expr->getExpr());
 
   interResult =
-      builder.CreateLoad(expr->getType()->getLLVMType(ctx), interResult);
+      builder.CreateLoad(expr->getType()->toLLVMType(ctx), interResult);
 }
 
 void CodeGen::visit(PointerOpExpr *expr) {
@@ -155,7 +155,7 @@ void CodeGen::visit(PointerOpExpr *expr) {
     auto *pointerTy = llvm::dyn_cast<PointerType>(expr->getExpr()->getType());
     assert(pointerTy && "Dereferencing a non-pointer type.");
 
-    interResult = builder.CreateLoad(pointerTy->getLLVMType(ctx), interResult);
+    interResult = builder.CreateLoad(pointerTy->toLLVMType(ctx), interResult);
   }
 }
 
@@ -335,7 +335,7 @@ void CodeGen::visit(VarDecl *decl) {
   if (decl->isGlobal()) {
     // Create a global variable, set the linkage to private...
     module->getOrInsertGlobal(decl->getName(),
-                              decl->getType()->getLLVMType(ctx));
+                              decl->getType()->toLLVMType(ctx));
     auto *globalVar = module->getNamedGlobal(decl->getName());
     globalVar->setLinkage(llvm::GlobalValue::PrivateLinkage);
     // ... and register it in the scope manager.
@@ -352,7 +352,7 @@ void CodeGen::visit(VarDecl *decl) {
     // function...
     llvm::IRBuilder<> tmpBuilder(&currFun->getEntryBlock(),
                                  currFun->getEntryBlock().begin());
-    auto *alloca = tmpBuilder.CreateAlloca(decl->getType()->getLLVMType(ctx), 0,
+    auto *alloca = tmpBuilder.CreateAlloca(decl->getType()->toLLVMType(ctx), 0,
                                            decl->getName());
     // ... and register it in the scope menager.
     env->insert(alloca, decl->getName());

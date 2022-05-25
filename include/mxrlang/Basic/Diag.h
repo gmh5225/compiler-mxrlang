@@ -16,17 +16,21 @@ enum class DiagID {
 };
 
 class Diag {
+  // Returns the error text based on the error ID.
   static const char *getDiagText(DiagID diagType);
+  // Returns the error kind based on the error ID.
   static llvm::SourceMgr::DiagKind getDiagKind(DiagID diagID);
 
   llvm::SourceMgr &srcMgr;
+
+  // Total number of seen errors.
   uint32_t numErrs;
 
 public:
   Diag(llvm::SourceMgr &srcMgr) : srcMgr(srcMgr), numErrs(0) {}
 
-  uint32_t getNumErrs() { return numErrs; }
-
+  // Report an error. Provide the LoC where it happened, its ID, and additional
+  // textual parameters where needed.
   template <typename... Args>
   void report(llvm::SMLoc loc, DiagID diagID, Args &&...args) {
     auto msg =
@@ -35,6 +39,8 @@ public:
     srcMgr.PrintMessage(loc, kind, msg);
     numErrs += (kind == llvm::SourceMgr::DK_Error);
   }
+
+  uint32_t getNumErrs() { return numErrs; }
 };
 
 } // namespace mxrlang

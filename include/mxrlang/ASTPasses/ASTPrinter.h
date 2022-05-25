@@ -42,14 +42,14 @@ class ASTPrinter : public Visitor {
 
   // Helper function which prints a binary operator.
   template <typename BinExpr>
-  void printBinary(const llvm::StringRef &op, BinExpr binExpr);
+  void printBinary(const llvm::StringRef &op, const BinExpr binExpr);
 
   // Helper function which prints a variable declaration or a function
   // declaration argument.
-  void printVar(VarDecl *stmt);
+  void printVar(const VarDecl *stmt);
 
   // Wrapper arout llvm::outs().
-  llvm::raw_fd_ostream &out() { return llvm::outs(); }
+  llvm::raw_fd_ostream &out() const { return llvm::outs(); }
 
   // Helper function for evaluating an expression or a statement.
   template <typename T> void evaluate(const T expr) { expr->accept(this); }

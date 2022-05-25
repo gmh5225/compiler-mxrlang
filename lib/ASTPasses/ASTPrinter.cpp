@@ -7,7 +7,7 @@ using namespace mxrlang;
 // Helper function which prints a binary operator.
 // (binop type (leftExpr) (rightExpr))
 template <typename BinExpr>
-void ASTPrinter::printBinary(const llvm::StringRef &op, BinExpr binExpr) {
+void ASTPrinter::printBinary(const llvm::StringRef &op, const BinExpr binExpr) {
   out() << "(" + op.str() + " " + binExpr->getType()->toString() + " ";
   evaluate(binExpr->getLeft());
   out() << " ";
@@ -17,7 +17,7 @@ void ASTPrinter::printBinary(const llvm::StringRef &op, BinExpr binExpr) {
 
 // Helper funcion which prints out a variable declaration or a function
 // declaration argument.
-void ASTPrinter::printVar(VarDecl *stmt) {
+void ASTPrinter::printVar(const VarDecl *stmt) {
   out() << stmt->getName().str() + " " + stmt->getType()->toString();
 }
 

@@ -11,6 +11,7 @@
 
 namespace mxrlang {
 
+// Mapping of keywords to their textual representations.
 class KeywordFilter {
   llvm::StringMap<TokenKind> kwTable;
 
@@ -32,15 +33,19 @@ class Lexer {
   llvm::SourceMgr &srcMgr;
   Diag &diag;
 
-  const char *currPtr;
+  // Buffer containing the source code.
   llvm::StringRef currBuff;
+  // Pointer in the buffer to the character that we're currently processing.
+  const char *currPtr;
 
-  // This is the current buffer index we're
-  // lexing from as managed by the SourceMgr object.
+  // This is the current buffer index we're lexing from
+  // as managed by the SourceMgr object.
   uint32_t currBuffer = 0;
 
+  // Filter the keywords from the identifiers.
   KeywordFilter keywords;
 
+  // List of all tokens.
   Tokens tokens;
 
 public:
@@ -55,15 +60,20 @@ public:
 
   llvm::StringRef getBuffer() const { return currBuff; }
 
+  // Perform lexing.
   Tokens &&lex();
 
 private:
+  // Lex an identifier.
   void identifier(Token &result);
+  // Lex a number.
   void number(Token &result);
 
   llvm::SMLoc getLoc() { return llvm::SMLoc::getFromPointer(currPtr); }
 
+  // Create a token, given a pointer to its end in the buffer, and its kind.
   void formToken(Token &result, const char *tokEnd, TokenKind kind);
+  // Get the next token.
   void next(Token &result);
 };
 

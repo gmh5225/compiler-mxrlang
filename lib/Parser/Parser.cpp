@@ -113,7 +113,7 @@ VarDecl *Parser::parseSingleVar(bool isFunArg) {
   if (!isFunArg && match(TokenKind::colonequal))
     initializer = expression();
 
-  return new VarDecl(name.getIdentifier(), initializer, varType,
+  return new VarDecl(name.getData(), initializer, varType,
                      /* global= */ false, name.getLocation());
 }
 
@@ -163,7 +163,7 @@ Decl *Parser::funDeclaration() {
   while (!match(TokenKind::kw_NUF) && !isAtEnd())
     body.emplace_back(declaration());
 
-  return new FunDecl(funName.getIdentifier(), retType, std::move(args),
+  return new FunDecl(funName.getData(), retType, std::move(args),
                      std::move(body), funToken.getLocation());
 }
 
@@ -461,8 +461,7 @@ Expr *Parser::primary() {
     consume({TokenKind::closedpar}, DiagID::err_expect, ")"s);
     return new GroupingExpr(expr, previous().getLocation());
   } else if (match(TokenKind::integer_literal))
-    return new IntLiteralExpr(previous().getLiteralData(),
-                              previous().getLocation());
+    return new IntLiteralExpr(previous().getData(), previous().getLocation());
   else if (match(TokenKind::identifier))
     return identifier();
 

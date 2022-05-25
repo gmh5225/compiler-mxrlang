@@ -178,7 +178,7 @@ public:
       : Node(NodeKind::Decl, loc), kind(kind), name(name) {}
 
   DeclKind getKind() const { return kind; }
-  llvm::StringRef getName() const { return name; }
+  const llvm::StringRef &getName() const { return name; }
 
   CLASSOF(Node, Decl)
 };
@@ -510,7 +510,7 @@ public:
   ScanStmt(Expr *scanVar, llvm::SMLoc loc)
       : Stmt(StmtKind::Scan, loc), scanVar(scanVar) {}
 
-  Expr *getScanVar() { return scanVar; }
+  Expr *getScanVar() const { return scanVar; }
 
   void setScanVar(Expr *scanVar) { this->scanVar = scanVar; }
 
@@ -567,7 +567,7 @@ public:
         global(global) {}
 
   Type *getType() const { return type; }
-  Expr *getInitializer() { return initializer; }
+  Expr *getInitializer() const { return initializer; }
   bool isGlobal() const { return global; }
 
   void setInitializer(Expr *init) { this->initializer = init; }

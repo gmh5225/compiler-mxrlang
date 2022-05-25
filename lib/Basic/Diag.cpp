@@ -13,10 +13,12 @@ llvm::SourceMgr::DiagKind diagKind[] = {
 
 using namespace mxrlang;
 
+// Returns the error text based on the error ID.
 const char *Diag::getDiagText(DiagID diagID) {
   return diagText[static_cast<uint32_t>(diagID)];
 }
 
+// Returns the error kind based on the error ID.
 llvm::SourceMgr::DiagKind Diag::getDiagKind(DiagID diagID) {
   return diagKind[static_cast<uint32_t>(diagID)];
 }

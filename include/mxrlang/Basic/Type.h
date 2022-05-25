@@ -46,14 +46,15 @@ public:
   static Type *getNoneType() { return typeTable["NONE"]; }
 
   // Check if the two provided types match.
-  static bool checkTypesMatching(Type *left, Type *right);
+  static bool checkTypesMatching(const Type *left, const Type *right);
 
   TypeKind getTypeKind() const { return type; }
 
   // Convert the type to string. Useful when printing out the type.
   virtual std::string toString() const { return ""; }
 
-  virtual llvm::Type *getLLVMType(llvm::LLVMContext &ctx) const = 0;
+  // Convert the Mxrlang type to LLVM type.
+  virtual llvm::Type *toLLVMType(llvm::LLVMContext &ctx) const = 0;
 };
 
 // Holds the mxrlang built-in types.
@@ -86,7 +87,8 @@ public:
     llvm_unreachable("Defective type.");
   }
 
-  llvm::Type *getLLVMType(llvm::LLVMContext &ctx) const override {
+  // Convert the Mxrlang type to LLVM type.
+  llvm::Type *toLLVMType(llvm::LLVMContext &ctx) const override {
     if (basicType == BasicTypeKind::Int)
       return llvm::Type::getInt64Ty(ctx);
     else if (basicType == BasicTypeKind::Bool)
@@ -108,15 +110,16 @@ public:
   PointerType(Type *pointeeType)
       : Type(TypeKind::Pointer), pointeeType(pointeeType) {}
 
-  Type *getPointeeType() { return pointeeType; }
+  Type *getPointeeType() const { return pointeeType; }
 
   // Convert the type to string. Useful when printing out the type.
   std::string toString() const override {
     return pointeeType->toString() + "*";
   }
 
-  llvm::Type *getLLVMType(llvm::LLVMContext &ctx) const override {
-    return llvm::PointerType::get(pointeeType->getLLVMType(ctx), 0);
+  // Convert the Mxrlang type to LLVM type.
+  llvm::Type *toLLVMType(llvm::LLVMContext &ctx) const override {
+    return llvm::PointerType::get(pointeeType->toLLVMType(ctx), 0);
   }
 
   static bool classof(const Type *node) {

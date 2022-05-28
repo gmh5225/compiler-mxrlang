@@ -35,6 +35,20 @@ llvm::Function *CodeGen::createFunction(FunDecl *decl,
                                 decl->getName(), module.get());
 }
 
+void CodeGen::visit(ArrayAccessExpr *expr) {
+  evaluate(expr->getArray());
+  auto *array = interResult;
+
+  evaluate(expr->getElement());
+  auto *element = interResult;
+
+  llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx),
+                                             llvm::APInt::getZero(64));
+  llvm::ArrayRef<llvm::Value *> idxs = {zero, element};
+  interResult = builder.CreateInBoundsGEP(
+      expr->getArray()->getType()->toLLVMType(ctx), array, idxs);
+}
+
 void CodeGen::visit(AssignExpr *expr) {
   evaluate(expr->getSource());
   auto *source = interResult;

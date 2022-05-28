@@ -48,6 +48,9 @@ class Parser {
   // or function declaration arguments.
   VarDecl *parseSingleVar(bool isFunArg);
 
+  // Parse a type declaration.
+  Type *parseType();
+
   // Productions.
   Node *declaration();
   Decl *funDeclaration();

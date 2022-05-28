@@ -3,6 +3,7 @@
 
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
+#include <cstdint>
 #include <unordered_map>
 
 #include "Token.h"
@@ -14,7 +15,7 @@ namespace mxrlang {
 // Holds the expression type.
 class Type {
 public:
-  enum class TypeKind { Basic, Pointer };
+  enum class TypeKind { Basic, Pointer, Array };
 
 protected:
   TypeKind type;
@@ -124,6 +125,38 @@ public:
 
   static bool classof(const Type *node) {
     return node->getTypeKind() == Type::TypeKind::Pointer;
+  }
+};
+
+// Holds the array type.
+class ArrayType : public Type {
+private:
+  Type *arrayType;
+  // Size of the array (number of elements).
+  uint64_t elNum;
+
+public:
+  ArrayType(Type *arrayType, uint64_t elNum)
+      : Type(TypeKind::Array), arrayType(arrayType), elNum(elNum) {}
+
+  Type *getArrayType() const { return arrayType; }
+  uint64_t getElNum() const { return elNum; }
+
+  // Convert the type to string. Useful when printing out the type.
+  std::string toString() const override {
+    auto typeStr = arrayType->toString();
+    typeStr += "[" + std::to_string(elNum) + "]";
+
+    return typeStr;
+  }
+
+  // Convert the Mxrlang type to LLVM type.
+  llvm::Type *toLLVMType(llvm::LLVMContext &ctx) const override {
+    return llvm::ArrayType::get(arrayType->toLLVMType(ctx), elNum);
+  }
+
+  static bool classof(const Type *node) {
+    return node->getTypeKind() == Type::TypeKind::Array;
   }
 };
 

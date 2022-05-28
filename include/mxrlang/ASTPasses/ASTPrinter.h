@@ -7,6 +7,7 @@ namespace mxrlang {
 
 class ASTPrinter : public Visitor {
   // Expression visitor methods
+  void visit(ArrayAccessExpr *expr) override;
   void visit(AssignExpr *expr) override;
   void visit(BinaryArithExpr *expr) override;
   void visit(BinaryLogicalExpr *expr) override;

@@ -2,6 +2,40 @@
 
 using namespace mxrlang;
 
+void SemaCheck::visit(ArrayAccessExpr *expr) {
+  // We don't need to load an array before accessing it
+  //
+  // ArrayAccessExpr -> LoadExpr -> VarExpr
+  // |
+  // v
+  // ArrayAccessExpr -> VarExpr
+  //
+  // After accessing, we will load the value if needed.
+  if (auto *loadExpr = llvm::dyn_cast<LoadExpr>(expr->getArray())) {
+    expr->setArray(loadExpr->getExpr());
+    delete loadExpr;
+  }
+
+  // Element must be an INT.
+  evaluate(expr->getElement());
+  if (!Type::checkTypesMatching(expr->getElement()->getType(),
+                                Type::getIntType()))
+    diag.report(expr->getLoc(), DiagID::err_array_access_not_int);
+
+  // We can only access array variables or other ArrayAccessExpr's...
+  if (!llvm::isa<VarExpr>(expr->getArray()) &&
+      !llvm::isa<ArrayAccessExpr>(expr->getArray()))
+    diag.report(expr->getLoc(), DiagID::err_array_access_not_array);
+  evaluate(expr->getArray());
+
+  // ... of array type.
+  ArrayType *type = llvm::dyn_cast<ArrayType>(expr->getArray()->getType());
+  if (!type)
+    diag.report(expr->getLoc(), DiagID::err_array_access_not_array);
+
+  expr->setType(type->getArrayType());
+}
+
 void SemaCheck::visit(AssignExpr *expr) {
   evaluate(expr->getSource());
 

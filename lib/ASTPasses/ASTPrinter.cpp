@@ -21,6 +21,15 @@ void ASTPrinter::printVar(const VarDecl *stmt) {
   out() << stmt->getName().str() + " " + stmt->getType()->toString();
 }
 
+// ([elem] (expr))
+void ASTPrinter::visit(ArrayAccessExpr *expr) {
+  out() << "([";
+  evaluate(expr->getElement());
+  out() << "] (";
+  evaluate(expr->getArray());
+  out() << ")";
+}
+
 // (= (dest, dest, dest, ....) (source))
 void ASTPrinter::visit(AssignExpr *expr) {
   out() << "(= ";

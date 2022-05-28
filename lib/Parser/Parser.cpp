@@ -101,12 +101,7 @@ VarDecl *Parser::parseSingleVar(bool isFunArg) {
   consume({TokenKind::colon}, DiagID::err_expect, ":"s);
 
   // Parse the type.
-  const Token &typeTok = consume({TokenKind::kw_INT, TokenKind::kw_BOOL},
-                                 DiagID::err_expect, "type");
-  Type *varType = Type::getTypeFromToken(typeTok);
-
-  while (match(TokenKind::star))
-    varType = new PointerType(varType);
+  auto *varType = parseType();
 
   // Parse the initializer, if it exists.
   Expr *initializer = nullptr;
@@ -115,6 +110,29 @@ VarDecl *Parser::parseSingleVar(bool isFunArg) {
 
   return new VarDecl(name.getData(), initializer, varType,
                      /* global= */ false, name.getLocation());
+}
+
+// Parse a type declaration.
+Type *Parser::parseType() {
+  const Token &typeTok = consume({TokenKind::kw_INT, TokenKind::kw_BOOL},
+                                 DiagID::err_expect, "type");
+  auto *type = Type::getTypeFromToken(typeTok);
+
+  while (match(TokenKind::star))
+    type = new PointerType(type);
+
+  while (match(TokenKind::openbracket)) {
+    auto *elNumExpr = primary();
+    if (!llvm::isa<IntLiteralExpr>(elNumExpr))
+      throw error(previous(), DiagID::err_array_size_not_int, ""s);
+
+    consume({TokenKind::closedbracket}, DiagID::err_expect, "]"s);
+
+    type = new ArrayType(
+        type, llvm::dyn_cast<IntLiteralExpr>(elNumExpr)->getRawValue());
+  }
+
+  return type;
 }
 
 // FIXME: We currently allow parsing internal functions,
@@ -154,9 +172,7 @@ Decl *Parser::funDeclaration() {
 
   // Parse the return type.
   consume({TokenKind::colon}, DiagID::err_expect, ":"s);
-  const Token &typeTok = consume({TokenKind::kw_INT, TokenKind::kw_BOOL},
-                                 DiagID::err_expect, "type");
-  Type *retType = Type::getTypeFromToken(typeTok);
+  auto *retType = parseType();
 
   // Parse the function body
   Nodes body;
@@ -444,6 +460,8 @@ Expr *Parser::unary() {
     Expr *expr = primary();
     expr = new PointerOpExpr(kind, expr, opString, previous().getLocation());
     if (kind == PointerOpExpr::PointerOpKind::Dereference)
+      // Always perform the load after dereferencing. Semantic check will remove
+      // the load if we are dereferencing for writing.
       expr = new LoadExpr(expr, previous().getLocation());
 
     return expr;
@@ -470,6 +488,7 @@ Expr *Parser::primary() {
 
 Expr *Parser::identifier() {
   Token &name = previous();
+  Expr *expr = new VarExpr(name.getData(), name.getLocation());
 
   // If we see '(', this is a function call.
   if (match(TokenKind::openpar)) {
@@ -486,13 +505,25 @@ Expr *Parser::identifier() {
     }
 
     return new CallExpr(name.getData(), std::move(args), name.getLocation());
+  } else if (match(TokenKind::openbracket)) {
+    // If we see '[' this is array indexing.
+    //
+    // Create as many array accesses as we have []'s.
+    do {
+      auto *element = logicalOr();
+      consume({TokenKind::closedbracket}, DiagID::err_expect, "]"s);
+      expr = new ArrayAccessExpr(expr, element, previous().getLocation());
+    } while (match(TokenKind::openbracket));
+
+    // Always perform the load after array access. Semantic check will remove
+    // the load if we are accessing for writing.
+    return new LoadExpr(expr, previous().getLocation());
   } else {
     // Otherwise, it's a variable access.
-    Expr *expr = new VarExpr(name.getData(), name.getLocation());
+    //
     // Always load the variable for now. Semantic check will remove redundant
     // loads.
-    expr = new LoadExpr(expr, name.getLocation());
-    return expr;
+    return new LoadExpr(expr, name.getLocation());
   }
 }
 

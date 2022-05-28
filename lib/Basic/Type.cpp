@@ -21,7 +21,7 @@ bool Type::checkTypesMatching(const Type *left, const Type *right) {
     // Basic types only live as static members of the BasicType class.
     return left == right;
   } else if (left->getTypeKind() == TypeKind::Pointer) {
-    if (left->getTypeKind() != TypeKind::Pointer)
+    if (right->getTypeKind() != TypeKind::Pointer)
       return false;
 
     auto *leftPointer = llvm::dyn_cast<PointerType>(left);
@@ -30,6 +30,17 @@ bool Type::checkTypesMatching(const Type *left, const Type *right) {
     // Recursively check pointee types.
     return checkTypesMatching(leftPointer->getPointeeType(),
                               rightPointer->getPointeeType());
+  } else {
+    assert(left->getTypeKind() == TypeKind::Array && "Unrecognized type.");
+    if (right->getTypeKind() != TypeKind::Array)
+      return false;
+
+    auto *leftArray = llvm::dyn_cast<ArrayType>(left);
+    auto *rightArray = llvm::dyn_cast<ArrayType>(right);
+
+    // Recursively check array types.
+    return checkTypesMatching(leftArray->getArrayType(),
+                              rightArray->getArrayType());
   }
 
   return false;

@@ -2,6 +2,13 @@
 
 using namespace mxrlang;
 
+void PostOrderVisitor::visit(ArrayAccessExpr *expr) {
+  evaluate(expr->getArray());
+  evaluate(expr->getElement());
+
+  postOrder.emplace_back(expr);
+}
+
 void PostOrderVisitor::visit(AssignExpr *expr) {
   evaluate(expr->getDest());
   evaluate(expr->getSource());

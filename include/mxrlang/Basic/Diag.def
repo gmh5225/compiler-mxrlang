@@ -26,5 +26,8 @@ DIAG(err_arg_type_mismatch, Error, "Type of function call and declaration argume
 DIAG(err_global_init_not_lit, Error, "Initializer of the global variable must be of corresponding literal type.")
 DIAG(err_addrof_target_not_var, Error, "Can take address only of in-memory variables.")
 DIAG(err_deref_target_not_ptr_var, Error, "Can dereference only pointers to in-memory variables.")
+DIAG(err_array_size_not_int, Error, "Array size can only be specified by an integer.")
+DIAG(err_array_access_not_int, Error, "Array index must be of integer type.")
+DIAG(err_array_access_not_array, Error, "Indexed variable must be of array type.")
 
 #undef DIAG

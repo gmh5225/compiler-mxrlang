@@ -71,10 +71,12 @@ void Lexer::next(Token &result) {
     formToken(result, currPtr + 1, tok);                                       \
     break;
 
+      CASE(']', TokenKind::closedbracket)
       CASE(')', TokenKind::closedpar)
       CASE(',', TokenKind::comma)
       CASE('=', TokenKind::equal)
       CASE('-', TokenKind::minus)
+      CASE('[', TokenKind::openbracket)
       CASE('(', TokenKind::openpar)
       CASE('+', TokenKind::plus)
       CASE(';', TokenKind::semicolon)

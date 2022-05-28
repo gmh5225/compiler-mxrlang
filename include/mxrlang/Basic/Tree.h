@@ -27,6 +27,7 @@ namespace mxrlang {
 class Node;
 
 class Expr;
+class ArrayAccessExpr;
 class AssignExpr;
 class BinaryArithExpr;
 class BinaryLogicalExpr;
@@ -61,6 +62,7 @@ using FunDeclArgs = std::vector<VarDecl *>;
 // Inherit from Visitor class in order to create an AST traversal class.
 class Visitor {
 public:
+  virtual void visit(ArrayAccessExpr *expr) = 0;
   virtual void visit(AssignExpr *expr) = 0;
   virtual void visit(BinaryArithExpr *expr) = 0;
   virtual void visit(BinaryLogicalExpr *expr) = 0;
@@ -111,6 +113,7 @@ public:
 class Expr : public Node {
 public:
   enum class ExprKind {
+    ArrayAccess,
     Assign,
     BinaryArith,
     BinaryLogical,
@@ -181,6 +184,29 @@ public:
   const llvm::StringRef &getName() const { return name; }
 
   CLASSOF(Node, Decl)
+};
+
+// Describes an array access (e.g. arr[5]).
+class ArrayAccessExpr : public Expr {
+  // Array.
+  Expr *array;
+  // Accessed element.
+  Expr *element;
+
+public:
+  ArrayAccessExpr(Expr *array, Expr *element, llvm::SMLoc loc)
+      : Expr(ExprKind::ArrayAccess, loc), array(array), element(element) {}
+
+  Expr *getArray() const { return array; }
+  Expr *getElement() const { return element; }
+
+  void setArray(Expr *array) { this->array = array; }
+  void setElement(Expr *element) { this->element = element; }
+
+  ACCEPT()
+  CLASSOF(Expr, ArrayAccess)
+
+  bool isValidAssignDest() override { return true; }
 };
 
 // Describes an assignment (e.g. x := 5).
@@ -332,6 +358,7 @@ public:
       : Expr(ExprKind::IntLiteral, loc, Type::getIntType()), value(value) {}
 
   const llvm::APSInt &getValue() const { return value; }
+  uint64_t getRawValue() const { return *value.getRawData(); }
 
   ACCEPT()
   CLASSOF(Expr, IntLiteral)
@@ -356,13 +383,14 @@ public:
   CLASSOF(Expr, Load)
 };
 
-// Describes an operation on a pointer (addres-of/dereference).
+// Describes an operation on a pointer (address-of/dereference).
 class PointerOpExpr : public Expr {
 public:
   enum class PointerOpKind { AddressOf, Dereference };
 
 private:
   PointerOpKind pointerOpKind;
+  // Pointer.
   Expr *expr;
   // Useful for printing out the AST.
   llvm::StringRef opString;

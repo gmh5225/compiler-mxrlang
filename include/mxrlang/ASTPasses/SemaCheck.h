@@ -21,6 +21,7 @@ class SemaCheck : public Visitor {
   FunDecl *currFun = nullptr;
 
   // Expression visitor methods
+  void visit(ArrayAccessExpr *expr) override;
   void visit(AssignExpr *expr) override;
   void visit(BinaryArithExpr *expr) override;
   void visit(BinaryLogicalExpr *expr) override;

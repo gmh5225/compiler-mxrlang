@@ -75,6 +75,8 @@ class Parser {
   Expr *unary();
   Expr *primary();
   Expr *identifier();
+  Expr *funCall(const Token &name);
+  Expr *arrayAccess(Expr *var);
 
 public:
   Parser(Tokens &tokens, Diag &diag)

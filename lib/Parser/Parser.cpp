@@ -491,29 +491,11 @@ Expr *Parser::identifier() {
   Expr *expr = new VarExpr(name.getData(), name.getLocation());
 
   // If we see '(', this is a function call.
-  if (match(TokenKind::openpar)) {
-    FunCallArgs args;
-    while (!match(TokenKind::closedpar) && !isAtEnd()) {
-      // Parse the argument as an expression.
-      args.push_back(expression());
-
-      bool seenComma = match(TokenKind::comma);
-      if (!seenComma && (peek().getKind() != TokenKind::closedpar))
-        throw error(peek(), DiagID::err_expect, ",");
-      if (seenComma && (peek().getKind() == TokenKind::closedpar))
-        throw error(peek(), DiagID::err_expect, "expression");
-    }
-
-    return new CallExpr(name.getData(), std::move(args), name.getLocation());
-  } else if (match(TokenKind::openbracket)) {
+  if (match(TokenKind::openpar))
+    return funCall(name);
+  else if (match(TokenKind::openbracket)) {
     // If we see '[' this is array indexing.
-    //
-    // Create as many array accesses as we have []'s.
-    do {
-      auto *element = logicalOr();
-      consume({TokenKind::closedbracket}, DiagID::err_expect, "]"s);
-      expr = new ArrayAccessExpr(expr, element, previous().getLocation());
-    } while (match(TokenKind::openbracket));
+    expr = arrayAccess(expr);
 
     // Always perform the load after array access. Semantic check will remove
     // the load if we are accessing for writing.
@@ -525,6 +507,33 @@ Expr *Parser::identifier() {
     // loads.
     return new LoadExpr(expr, name.getLocation());
   }
+}
+
+Expr *Parser::funCall(const Token &name) {
+  FunCallArgs args;
+  while (!match(TokenKind::closedpar) && !isAtEnd()) {
+    // Parse the argument as an expression.
+    args.push_back(expression());
+
+    bool seenComma = match(TokenKind::comma);
+    if (!seenComma && (peek().getKind() != TokenKind::closedpar))
+      throw error(peek(), DiagID::err_expect, ",");
+    if (seenComma && (peek().getKind() == TokenKind::closedpar))
+      throw error(peek(), DiagID::err_expect, "expression");
+  }
+
+  return new CallExpr(name.getData(), std::move(args), name.getLocation());
+}
+
+Expr *Parser::arrayAccess(Expr *var) {
+  // Create as many array accesses as we have []'s.
+  do {
+    auto *element = logicalOr();
+    consume({TokenKind::closedbracket}, DiagID::err_expect, "]"s);
+    var = new ArrayAccessExpr(var, element, previous().getLocation());
+  } while (match(TokenKind::openbracket));
+
+  return var;
 }
 
 // Parse the token stream and return the root of the AST.

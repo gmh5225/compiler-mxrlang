@@ -155,6 +155,10 @@ Decl *Parser::funDeclaration() {
   Token &funName =
       consume({TokenKind::identifier}, DiagID::err_expect, "identifier"s);
 
+  // Parse the return type.
+  consume({TokenKind::colon}, DiagID::err_expect, ":"s);
+  auto *retType = parseType();
+
   // Parse function arguments.
   FunDeclArgs args;
   consume({TokenKind::openpar}, DiagID::err_expect, ")"s);
@@ -169,10 +173,6 @@ Decl *Parser::funDeclaration() {
     if (seenComma && (peek().getKind() == TokenKind::closedpar))
       throw error(peek(), DiagID::err_expect, "function argument");
   }
-
-  // Parse the return type.
-  consume({TokenKind::colon}, DiagID::err_expect, ":"s);
-  auto *retType = parseType();
 
   // Parse the function body
   Nodes body;

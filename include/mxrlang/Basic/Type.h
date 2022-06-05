@@ -47,9 +47,13 @@ public:
   static Type *getNoneType() { return typeTable["NONE"]; }
 
   // Check if the two provided types match.
-  static bool checkTypesMatching(const Type *left, const Type *right);
+  static bool checkTypesMatching(const Type *left, const Type *right,
+                                 bool arrayDecay = true);
 
   TypeKind getTypeKind() const { return type; }
+
+  // Return the subtype (only for array and pointer types).
+  virtual Type *getSubtype() const { return nullptr; }
 
   // Convert the type to string. Useful when printing out the type.
   virtual std::string toString() const { return ""; }
@@ -111,7 +115,8 @@ public:
   PointerType(Type *pointeeType)
       : Type(TypeKind::Pointer), pointeeType(pointeeType) {}
 
-  Type *getPointeeType() const { return pointeeType; }
+  // Return the subtype (only for array and pointer types).
+  Type *getSubtype() const override { return pointeeType; }
 
   // Convert the type to string. Useful when printing out the type.
   std::string toString() const override {
@@ -139,7 +144,8 @@ public:
   ArrayType(Type *arrayType, uint64_t elNum)
       : Type(TypeKind::Array), arrayType(arrayType), elNum(elNum) {}
 
-  Type *getArrayType() const { return arrayType; }
+  // Return the subtype (only for array and pointer types)
+  Type *getSubtype() const override { return arrayType; }
   uint64_t getElNum() const { return elNum; }
 
   // Convert the type to string. Useful when printing out the type.
@@ -149,6 +155,9 @@ public:
 
     return typeStr;
   }
+
+  // Decays the array type to pointer type.
+  Type *decay() const { return new PointerType(arrayType); }
 
   // Convert the Mxrlang type to LLVM type.
   llvm::Type *toLLVMType(llvm::LLVMContext &ctx) const override {

@@ -13,35 +13,32 @@ std::unordered_map<std::string, Type *> Type::typeTable = {
     {"INT", &BasicType::intType}};
 
 // Check if the two provided types match.
-bool Type::checkTypesMatching(const Type *left, const Type *right) {
+bool Type::checkTypesMatching(const Type *left, const Type *right,
+                              bool arrayDecay) {
   if (left->getTypeKind() == TypeKind::Basic) {
     if (right->getTypeKind() != TypeKind::Basic)
       return false;
 
     // Basic types only live as static members of the BasicType class.
     return left == right;
+  } else if (arrayDecay) {
+    // Consider array and pointer types equal.
+    return checkTypesMatching(left->getSubtype(), right->getSubtype());
   } else if (left->getTypeKind() == TypeKind::Pointer) {
-    if (right->getTypeKind() != TypeKind::Pointer)
+     if (right->getTypeKind() == TypeKind::Pointer)
+       return checkTypesMatching(left->getSubtype(), right->getSubtype(), false);
+
+     return false;
+  } else if (left->getTypeKind() == TypeKind::Array) {
+      auto *leftArray = llvm::dyn_cast<ArrayType>(left);
+      if (auto *rightArray = llvm::dyn_cast<ArrayType>(right)) {
+        if (leftArray->getElNum() != rightArray->getElNum())
+          return false;
+
+        return checkTypesMatching(left->getSubtype(), right->getSubtype(), false);
+      }
+
       return false;
-
-    auto *leftPointer = llvm::dyn_cast<PointerType>(left);
-    auto *rightPointer = llvm::dyn_cast<PointerType>(right);
-
-    // Recursively check pointee types.
-    return checkTypesMatching(leftPointer->getPointeeType(),
-                              rightPointer->getPointeeType());
-  } else {
-    assert(left->getTypeKind() == TypeKind::Array && "Unrecognized type.");
-    if (right->getTypeKind() != TypeKind::Array)
-      return false;
-
-    auto *leftArray = llvm::dyn_cast<ArrayType>(left);
-    auto *rightArray = llvm::dyn_cast<ArrayType>(right);
-
-    // Recursively check array types.
-    return checkTypesMatching(leftArray->getArrayType(),
-                              rightArray->getArrayType());
-  }
-
-  return false;
+  } else
+    llvm_unreachable("Unrecognized type.");
 }

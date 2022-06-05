@@ -46,6 +46,11 @@ class SemaCheck : public Visitor {
   void visit(ModuleDecl *decl) override;
   void visit(VarDecl *decl) override;
 
+  // Check whether an expression is a valid assignment destination.
+  // This is a recursive function, so we can access the expression through
+  // ArrayAccess of PointerOp(Deref).
+  bool isValidAssignDest(Expr *expr, bool arrayAccessOrDeref);
+
   // Helper function for evaluating an expression or a statement.
   template <typename T> void evaluate(const T expr) { expr->accept(this); }
 

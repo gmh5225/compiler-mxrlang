@@ -108,6 +108,10 @@ VarDecl *Parser::parseSingleVar(bool isFunArg) {
   if (!isFunArg && match(TokenKind::colonequal))
     initializer = expression();
 
+  // Decay the array type if this is a function argument.
+  if (isFunArg && varType->getTypeKind() == Type::TypeKind::Array)
+    varType = llvm::dyn_cast<ArrayType>(varType)->decay();
+
   return new VarDecl(name.getData(), initializer, varType,
                      /* global= */ false, name.getLocation());
 }
@@ -121,16 +125,19 @@ Type *Parser::parseType() {
   while (match(TokenKind::star))
     type = new PointerType(type);
 
+  Exprs elNums;
   while (match(TokenKind::openbracket)) {
     auto *elNumExpr = primary();
     if (!llvm::isa<IntLiteralExpr>(elNumExpr))
       throw error(previous(), DiagID::err_array_size_not_int, ""s);
+    elNums.push_back(elNumExpr);
 
     consume({TokenKind::closedbracket}, DiagID::err_expect, "]"s);
-
-    type = new ArrayType(
-        type, llvm::dyn_cast<IntLiteralExpr>(elNumExpr)->getRawValue());
   }
+
+  for (auto it = elNums.rbegin(); it != elNums.rend(); ++it)
+    type =
+        new ArrayType(type, llvm::dyn_cast<IntLiteralExpr>(*it)->getRawValue());
 
   return type;
 }
@@ -527,11 +534,15 @@ Expr *Parser::funCall(const Token &name) {
 
 Expr *Parser::arrayAccess(Expr *var) {
   // Create as many array accesses as we have []'s.
+  Exprs elements;
   do {
     auto *element = logicalOr();
     consume({TokenKind::closedbracket}, DiagID::err_expect, "]"s);
-    var = new ArrayAccessExpr(var, element, previous().getLocation());
+    elements.push_back(element);
   } while (match(TokenKind::openbracket));
+
+  for (auto it = elements.rbegin(); it != elements.rend(); ++it)
+    var = new ArrayAccessExpr(var, *it, previous().getLocation());
 
   return var;
 }

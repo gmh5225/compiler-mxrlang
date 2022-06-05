@@ -2,6 +2,41 @@
 
 using namespace mxrlang;
 
+// Check whether an expression is a valid assignment destination.
+// This is a recursive function, so we can access the expression through
+// ArrayAccess of PointerOp(Deref).
+bool SemaCheck::isValidAssignDest(Expr *expr, bool arrayAccessOrDeref) {
+  if (arrayAccessOrDeref) {
+    if (llvm::isa<VarExpr>(expr) &&
+        (expr->getType()->getTypeKind() == Type::TypeKind::Array ||
+         expr->getType()->getTypeKind() == Type::TypeKind::Pointer))
+      return true;
+  } else {
+    // Cannot assign to array variable, if we are not accessing through
+    // ArrayAccess.
+    if (llvm::isa<VarExpr>(expr) &&
+        expr->getType()->getTypeKind() != Type::TypeKind::Array)
+      return true;
+  }
+
+  if (auto *loadExpr = llvm::dyn_cast<LoadExpr>(expr))
+    return isValidAssignDest(loadExpr->getExpr(), arrayAccessOrDeref);
+
+  if (auto *groupingExpr = llvm::dyn_cast<GroupingExpr>(expr))
+    return isValidAssignDest(groupingExpr->getExpr(), arrayAccessOrDeref);
+
+  if (auto *arrayAccess = llvm::dyn_cast<ArrayAccessExpr>(expr))
+    return isValidAssignDest(arrayAccess->getArray(), true);
+
+  if (auto *pointerOp = llvm::dyn_cast<PointerOpExpr>(expr)) {
+    if (pointerOp->getPointerOpKind() ==
+        PointerOpExpr::PointerOpKind::Dereference)
+      return isValidAssignDest(pointerOp->getExpr(), true);
+  }
+
+  return false;
+}
+
 void SemaCheck::visit(ArrayAccessExpr *expr) {
   // We don't need to load an array before accessing it
   //
@@ -22,18 +57,13 @@ void SemaCheck::visit(ArrayAccessExpr *expr) {
                                 Type::getIntType()))
     diag.report(expr->getLoc(), DiagID::err_array_access_not_int);
 
-  // We can only access array variables or other ArrayAccessExpr's...
-  if (!llvm::isa<VarExpr>(expr->getArray()) &&
-      !llvm::isa<ArrayAccessExpr>(expr->getArray()))
-    diag.report(expr->getLoc(), DiagID::err_array_access_not_array);
+  // We can only access expressions of array or pointer type.
   evaluate(expr->getArray());
-
-  // ... of array type.
-  ArrayType *type = llvm::dyn_cast<ArrayType>(expr->getArray()->getType());
-  if (!type)
+  if (expr->getArray()->getType()->getTypeKind() == Type::TypeKind::Array ||
+      expr->getArray()->getType()->getTypeKind() == Type::TypeKind::Pointer)
+    expr->setType(expr->getArray()->getType()->getSubtype());
+  else
     diag.report(expr->getLoc(), DiagID::err_array_access_not_array);
-
-  expr->setType(type->getArrayType());
 }
 
 void SemaCheck::visit(AssignExpr *expr) {
@@ -47,10 +77,9 @@ void SemaCheck::visit(AssignExpr *expr) {
   }
 
   // Evaluating assignment destination.
-  if (!expr->getDest()->isValidAssignDest())
-    diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
-
   evaluate(expr->getDest());
+  if (!isValidAssignDest(expr->getDest(), false))
+    diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
 
   if (!Type::checkTypesMatching(expr->getDest()->getType(),
                                 expr->getSource()->getType()))
@@ -168,32 +197,21 @@ void SemaCheck::visit(PointerOpExpr *expr) {
   }
 
   auto *e = expr->getExpr();
+  evaluate(e);
   auto kind = expr->getPointerOpKind();
 
   if (kind == PointerOpExpr::PointerOpKind::AddressOf) {
-    // We can only take the address of a VarExpr.
-    auto *var = llvm::dyn_cast<VarExpr>(e);
-    if (!var)
-      diag.report(expr->getLoc(), DiagID::err_addrof_target_not_var);
+    if (!e->canTakeAddressOf())
+      diag.report(expr->getLoc(), DiagID::err_addrof_target_not_mem);
 
-    evaluate(var);
-
-    auto *exprTy = var->getType();
+    auto *exprTy = e->getType();
     expr->setType(new PointerType(exprTy));
   } else {
-    // We can only dereference a VarExpr (through LoadExpr)...
-    auto *var = llvm::dyn_cast<VarExpr>(e);
-    if (!var)
-      diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_var);
+    // We can only dereference expressions of pointer type.
+    if (e->getType()->getTypeKind() != Type::TypeKind::Pointer)
+      diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_mem);
 
-    evaluate(var);
-
-    // ... of pointer type.
-    auto *exprTy = llvm::dyn_cast<PointerType>(var->getType());
-    if (!exprTy)
-      diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_var);
-
-    expr->setType(exprTy->getPointeeType());
+    expr->setType(e->getType()->getSubtype());
   }
 }
 
@@ -306,6 +324,10 @@ void SemaCheck::visit(FunDecl *decl) {
 
   for (auto st : decl->getBody())
     evaluate(st);
+
+  // Return value must not be of array type.
+  if (decl->getRetType()->getTypeKind() == Type::TypeKind::Array)
+    diag.report(decl->getLoc(), DiagID::err_ret_type_array);
 
   // Every function must have a return statement.
   if (!seenReturn)

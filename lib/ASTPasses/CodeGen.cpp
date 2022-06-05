@@ -42,11 +42,27 @@ void CodeGen::visit(ArrayAccessExpr *expr) {
   evaluate(expr->getElement());
   auto *element = interResult;
 
-  llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx),
-                                             llvm::APInt::getZero(64));
-  llvm::ArrayRef<llvm::Value *> idxs = {zero, element};
-  interResult = builder.CreateInBoundsGEP(
-      expr->getArray()->getType()->toLLVMType(ctx), array, idxs);
+  std::vector<llvm::Value *> idxs;
+  // When loading from an array we need two GEP indices.
+  // The first index is always zero, as it indexes the POINTER to the array
+  // (e.g. [5 x i64]*). The second index gets us the address of wanted array
+  // element.
+  if (expr->getArray()->getType()->getTypeKind() == Type::TypeKind::Array) {
+    llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx),
+                                               llvm::APInt::getZero(64));
+    idxs = {zero, element};
+    interResult = builder.CreateInBoundsGEP(
+        expr->getArray()->getType()->toLLVMType(ctx), array, idxs);
+  } else {
+    // When indexing a pointer, we MUST first load its contents from memory.
+    assert(expr->getArray()->getType()->getTypeKind() ==
+           Type::TypeKind::Pointer);
+    idxs = {element};
+    auto *ptr =
+        builder.CreateLoad(expr->getArray()->getType()->toLLVMType(ctx), array);
+    interResult = builder.CreateGEP(
+        expr->getArray()->getType()->getSubtype()->toLLVMType(ctx), ptr, idxs);
+  }
 }
 
 void CodeGen::visit(AssignExpr *expr) {
@@ -154,8 +170,20 @@ void CodeGen::visit(IntLiteralExpr *expr) {
 void CodeGen::visit(LoadExpr *expr) {
   evaluate(expr->getExpr());
 
-  interResult =
-      builder.CreateLoad(expr->getType()->toLLVMType(ctx), interResult);
+  // Accessing an array variable should only happen when passing it through
+  // funtion parameters. In that case, we extract the address of
+  // the array with the GEP instruction, and store it to pointer variable.
+  // This effectively decays the array (e.g. [6 x [5 x [4 x i64]]] to
+  // [5 x [4 x i64]]*).
+  if (expr->getType()->getTypeKind() == Type::TypeKind::Array) {
+    llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx),
+                                               llvm::APInt::getZero(64));
+    llvm::ArrayRef<llvm::Value *> idxs = {zero, zero};
+    interResult = builder.CreateGEP(expr->getExpr()->getType()->toLLVMType(ctx),
+                                    interResult, idxs);
+  } else
+    interResult =
+        builder.CreateLoad(expr->getType()->toLLVMType(ctx), interResult);
 }
 
 void CodeGen::visit(PointerOpExpr *expr) {

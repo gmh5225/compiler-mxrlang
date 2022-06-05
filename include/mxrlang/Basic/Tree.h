@@ -136,10 +136,8 @@ public:
   Expr(ExprKind kind, llvm::SMLoc loc, Type *type = Type::getNoneType())
       : Node(NodeKind::Expr, loc), kind(kind), type(type) {}
 
-  // Check whether this is a valid target of an assignment.
-  // Can be overridden by valid targets (eg. VariableExpr) to return an
-  // Assign expression.
-  virtual bool isValidAssignDest() { return false; }
+  // Check whether we can take the address of an expression.
+  virtual bool canTakeAddressOf() { return false; }
 
   ExprKind getKind() const { return kind; }
   Type *getType() const { return type; }
@@ -206,7 +204,7 @@ public:
   ACCEPT()
   CLASSOF(Expr, ArrayAccess)
 
-  bool isValidAssignDest() override { return true; }
+  bool canTakeAddressOf() override { return array->canTakeAddressOf(); }
 };
 
 // Describes an assignment (e.g. x := 5).
@@ -341,6 +339,8 @@ public:
 
   ACCEPT()
   CLASSOF(Expr, Grouping)
+
+  bool canTakeAddressOf() override { return expr->canTakeAddressOf(); }
 };
 
 // Describes an INT type literal (e.g. 1264).
@@ -381,6 +381,8 @@ public:
 
   ACCEPT()
   CLASSOF(Expr, Load)
+
+  bool canTakeAddressOf() override { return true; }
 };
 
 // Describes an operation on a pointer (address-of/dereference).
@@ -409,10 +411,6 @@ public:
 
   ACCEPT()
   CLASSOF(Expr, PointerOp)
-
-  bool isValidAssignDest() override {
-    return pointerOpKind == PointerOpKind::Dereference;
-  }
 };
 
 // Describes an unary expression (e.g. !x).
@@ -455,8 +453,7 @@ public:
   ACCEPT()
   CLASSOF(Expr, Var)
 
-  // VarExpr is a valid assignment destination.
-  bool isValidAssignDest() override { return true; }
+  bool canTakeAddressOf() override { return true; }
 };
 
 // The following classes describe statement nodes of the AST.

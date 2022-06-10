@@ -15,7 +15,11 @@ set(LLVM_LINK_COMPONENTS
   Support
   TransformUtils
   Vectorize
-  )
+  AggressiveInstCombine Analysis AsmParser
+  BitWriter CodeGen Core Coroutines IPO IRReader
+  InstCombine Instrumentation MC ObjCARCOpts Remarks
+  ScalarOpts Support Target TransformUtils Vectorize
+  Passes)
 
 add_mxrlang_tool(mxrlang
   Driver.cpp

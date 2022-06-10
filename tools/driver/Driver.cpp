@@ -14,6 +14,11 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Utils.h"
 
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
+
 #include "ASTPrinter.h"
 #include "CodeGen.h"
 #include "Diag.h"
@@ -32,6 +37,24 @@ static llvm::cl::list<std::string> inputFiles(llvm::cl::Positional,
 static llvm::cl::opt<bool>
     emitLLVM("emit-llvm", llvm::cl::desc("Emit IR code instead of assembler"),
              llvm::cl::init(false));
+
+static llvm::cl::opt<signed char> OptLevel(
+    llvm::cl::desc("Setting the optimization level:"), llvm::cl::ZeroOrMore,
+    llvm::cl::values(clEnumValN(3, "O", "Equivalent to -O3"),
+                     clEnumValN(0, "O0", "Optimization level 0"),
+                     clEnumValN(1, "O1", "Optimization level 1"),
+                     clEnumValN(2, "O2", "Optimization level 2"),
+                     clEnumValN(3, "O3", "Optimization level 3"),
+                     clEnumValN(-1, "Os",
+                                "Like -O2 with extra optimizations "
+                                "for size"),
+                     clEnumValN(-2, "Oz",
+                                "Like -Os but reduces code size further")),
+    llvm::cl::init(0));
+
+static llvm::cl::opt<std::string>
+    PassPipeline("passes",
+                 llvm::cl::desc("A description of the pass pipeline"));
 
 static const char *Head = "mxrlang - Mxrlang compiler";
 
@@ -69,9 +92,44 @@ llvm::TargetMachine *createTargetMachine(const char *argv0) {
   return TM;
 }
 
-// Emit an output file (.s or .ll)
 bool emit(llvm::StringRef argv0, llvm::Module *M, llvm::TargetMachine *TM,
           llvm::StringRef inputFilename) {
+  // Create the optimization pipeline.
+  llvm::PassBuilder PB(TM);
+
+  llvm::LoopAnalysisManager LAM;
+  llvm::FunctionAnalysisManager FAM;
+  llvm::CGSCCAnalysisManager CGAM;
+  llvm::ModuleAnalysisManager MAM;
+
+  // Register the AA manager first so that our version
+  // is the one used.
+  FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
+
+  // Register all the basic analyses with the managers.
+  PB.registerModuleAnalyses(MAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+  llvm::ModulePassManager MPM;
+
+  if (!PassPipeline.empty()) {
+    if (auto err = PB.parsePassPipeline(MPM, PassPipeline)) {
+      llvm::WithColor::error(llvm::errs(), argv0)
+          << llvm::toString(std::move(err)) << "\n";
+      return false;
+    }
+  } else {
+    llvm::StringRef defaultPass = "default<O0>";
+    if (auto err = PB.parsePassPipeline(MPM, defaultPass)) {
+      llvm::WithColor::error(llvm::errs(), argv0)
+          << llvm::toString(std::move(err)) << "\n";
+      return false;
+    }
+  }
+
   llvm::CodeGenFileType fileType = llvm::codegen::getFileType();
   std::string outputFilename;
   // REPL
@@ -110,20 +168,19 @@ bool emit(llvm::StringRef argv0, llvm::Module *M, llvm::TargetMachine *TM,
     return false;
   }
 
-  // Create the pass manager and add passes.
-  llvm::legacy::PassManager PM;
-  // Uncomment to enable alloca -> SSA reg conversion.
-  // PM.add(llvm::createPromoteMemoryToRegisterPass());
+  // Create the legacy pass manager for code gen.
+  llvm::legacy::PassManager codeGenPM;
   if (fileType == llvm::CGFT_AssemblyFile && emitLLVM) {
-    PM.add(llvm::createPrintModulePass(out->os()));
+    codeGenPM.add(llvm::createPrintModulePass(out->os()));
   } else {
-    if (TM->addPassesToEmitFile(PM, out->os(), nullptr, fileType)) {
+    if (TM->addPassesToEmitFile(codeGenPM, out->os(), nullptr, fileType)) {
       llvm::WithColor::error() << "No support for file type\n";
       return false;
     }
   }
-  // Run the optimization passes.
-  PM.run(*M);
+
+  MPM.run(*M, MAM);
+  codeGenPM.run(*M);
   out->keep();
   return true;
 }

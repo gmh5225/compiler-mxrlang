@@ -25,20 +25,20 @@ bool Type::checkTypesMatching(const Type *left, const Type *right,
     // Consider array and pointer types equal.
     return checkTypesMatching(left->getSubtype(), right->getSubtype());
   } else if (left->getTypeKind() == TypeKind::Pointer) {
-     if (right->getTypeKind() == TypeKind::Pointer)
-       return checkTypesMatching(left->getSubtype(), right->getSubtype(), false);
+    if (right->getTypeKind() == TypeKind::Pointer)
+      return checkTypesMatching(left->getSubtype(), right->getSubtype(), false);
 
-     return false;
+    return false;
   } else if (left->getTypeKind() == TypeKind::Array) {
-      auto *leftArray = llvm::dyn_cast<ArrayType>(left);
-      if (auto *rightArray = llvm::dyn_cast<ArrayType>(right)) {
-        if (leftArray->getElNum() != rightArray->getElNum())
-          return false;
+    auto *leftArray = llvm::dyn_cast<ArrayType>(left);
+    if (auto *rightArray = llvm::dyn_cast<ArrayType>(right)) {
+      if (leftArray->getElNum() != rightArray->getElNum())
+        return false;
 
-        return checkTypesMatching(left->getSubtype(), right->getSubtype(), false);
-      }
+      return checkTypesMatching(left->getSubtype(), right->getSubtype(), false);
+    }
 
-      return false;
+    return false;
   } else
     llvm_unreachable("Unrecognized type.");
 }

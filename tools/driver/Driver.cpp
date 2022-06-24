@@ -236,11 +236,11 @@ int main(int argc_, const char **argv_) {
     SemaCheck semaCheck(diag);
     semaCheck.run(moduleDecl);
 
+    if (diag.getNumErrs() > 0)
+      continue;
+
     // Helper pass which prints the AST.
     ASTPrinter astPrinter;
-    astPrinter.run(moduleDecl);
-
-    // Run the printer again to see the results of the const folding pass.
     astPrinter.run(moduleDecl);
 
     if (diag.getNumErrs() > 0)

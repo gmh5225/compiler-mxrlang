@@ -165,12 +165,12 @@ void ASTPrinter::visit(ScanStmt *stmt) {
   out() << ")\n";
 }
 
-// (until (conditionExpr))
+// (while (conditionExpr))
 //     (stmt1)
 //     ...
 //     (stmtn)
-void ASTPrinter::visit(UntilStmt *stmt) {
-  out() << indent + "(until ";
+void ASTPrinter::visit(WhileStmt *stmt) {
+  out() << indent + "(while ";
   increaseIndent();
   evaluate(stmt->getCond());
   out() << ")\n";

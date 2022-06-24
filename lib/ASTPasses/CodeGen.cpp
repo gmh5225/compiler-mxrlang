@@ -287,7 +287,7 @@ void CodeGen::visit(ScanStmt *stmt) {
   builder.CreateCall(scanFun, {scanFormatStr, interResult}, "scan");
 }
 
-void CodeGen::visit(UntilStmt *stmt) {
+void CodeGen::visit(WhileStmt *stmt) {
   // Create the BBs.
   auto *condBB = llvm::BasicBlock::Create(ctx, "cond", currFun);
   auto *bodyBB = llvm::BasicBlock::Create(ctx, "body");

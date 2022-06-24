@@ -46,7 +46,7 @@ class IfStmt;
 class PrintStmt;
 class ReturnStmt;
 class ScanStmt;
-class UntilStmt;
+class WhileStmt;
 
 class Decl;
 class FunDecl;
@@ -80,7 +80,7 @@ public:
   virtual void visit(PrintStmt *stmt) = 0;
   virtual void visit(ReturnStmt *stmt) = 0;
   virtual void visit(ScanStmt *stmt) = 0;
-  virtual void visit(UntilStmt *stmt) = 0;
+  virtual void visit(WhileStmt *stmt) = 0;
 
   virtual void visit(FunDecl *decl) = 0;
   virtual void visit(ModuleDecl *decl) = 0;
@@ -150,7 +150,7 @@ public:
 // Stmt class describes statement nodes of the AST.
 class Stmt : public Node {
 public:
-  enum class StmtKind { Expr, Fun, If, Module, Print, Return, Scan, Until };
+  enum class StmtKind { Expr, Fun, If, Module, Print, Return, Scan, While };
 
 private:
   StmtKind kind;
@@ -543,14 +543,14 @@ public:
   CLASSOF(Stmt, Scan)
 };
 
-// Statement node describing an until/do statement.
-class UntilStmt : public Stmt {
+// Statement node describing an while/do statement.
+class WhileStmt : public Stmt {
   Expr *cond;
   Nodes body;
 
 public:
-  UntilStmt(Expr *cond, Nodes &&body, llvm::SMLoc loc)
-      : Stmt(StmtKind::Until, loc), cond(cond), body(body) {}
+  WhileStmt(Expr *cond, Nodes &&body, llvm::SMLoc loc)
+      : Stmt(StmtKind::While, loc), cond(cond), body(body) {}
 
   Expr *getCond() const { return cond; }
   Nodes &getBody() { return body; }
@@ -558,7 +558,7 @@ public:
   void setCond(Expr *cond) { this->cond = cond; }
 
   ACCEPT()
-  CLASSOF(Stmt, Until)
+  CLASSOF(Stmt, While)
 };
 
 // The following classes describe statement nodes of the AST.

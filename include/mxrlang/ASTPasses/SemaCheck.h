@@ -40,7 +40,7 @@ class SemaCheck : public Visitor {
   void visit(PrintStmt *stmt) override;
   void visit(ReturnStmt *stmt) override;
   void visit(ScanStmt *stmt) override;
-  void visit(UntilStmt *stmt) override;
+  void visit(WhileStmt *stmt) override;
 
   void visit(FunDecl *decl) override;
   void visit(ModuleDecl *decl) override;

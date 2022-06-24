@@ -62,7 +62,7 @@ class Parser {
   Stmt *printStmt();
   Stmt *returnStmt();
   Stmt *scanStmt();
-  Stmt *untilStmt();
+  Stmt *whileStmt();
 
   Expr *expression();
   Expr *assignment();

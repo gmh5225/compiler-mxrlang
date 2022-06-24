@@ -296,7 +296,7 @@ void SemaCheck::visit(ScanStmt *stmt) {
   }
 }
 
-void SemaCheck::visit(UntilStmt *stmt) {
+void SemaCheck::visit(WhileStmt *stmt) {
   evaluate(stmt->getCond());
   if (!Type::checkTypesMatching(stmt->getCond()->getType(),
                                 Type::getBoolType()))

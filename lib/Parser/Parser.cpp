@@ -68,12 +68,12 @@ void Parser::synchronize() {
     case TokenKind::kw_FI:
     case TokenKind::kw_FUN:
     case TokenKind::kw_IF:
-    case TokenKind::kw_LITNU:
+    case TokenKind::kw_ELIHW:
     case TokenKind::kw_NUF:
     case TokenKind::kw_PRINT:
     case TokenKind::kw_SCAN:
     case TokenKind::kw_THEN:
-    case TokenKind::kw_UNTIL:
+    case TokenKind::kw_WHILE:
     case TokenKind::kw_VAR:
       return;
     default:;
@@ -206,8 +206,8 @@ Stmt *Parser::statement() {
     return returnStmt();
   else if (match(TokenKind::kw_SCAN))
     return scanStmt();
-  else if (match(TokenKind::kw_UNTIL))
-    return untilStmt();
+  else if (match(TokenKind::kw_WHILE))
+    return whileStmt();
   else
     return exprStmt();
 }
@@ -242,18 +242,18 @@ Stmt *Parser::ifStmt() {
                     previous().getLocation());
 }
 
-Stmt *Parser::untilStmt() {
+Stmt *Parser::whileStmt() {
   Nodes body;
-  // Parse the UNTIL condition.
+  // Parse the WHILE condition.
   Expr *cond = expression();
 
   consume({TokenKind::kw_DO}, DiagID::err_expect, "DO"s);
 
   // Parse the body.
-  while (!match(TokenKind::kw_LITNU) && !isAtEnd())
+  while (!match(TokenKind::kw_ELIHW) && !isAtEnd())
     body.push_back(declaration());
 
-  return new UntilStmt(cond, std::move(body), previous().getLocation());
+  return new WhileStmt(cond, std::move(body), previous().getLocation());
 }
 
 Stmt *Parser::printStmt() {

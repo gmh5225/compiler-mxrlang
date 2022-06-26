@@ -2,6 +2,14 @@
 
 using namespace mxrlang;
 
+// Report an error and throw an exception if we exceed a certain number
+// of reported errors.
+void SemaCheck::error(llvm::SMLoc loc, DiagID diagID) {
+  diag.report(loc, diagID);
+  if (diag.getNumErrs() > MAX_SEMANTIC_ERRS)
+    throw SemaError();
+}
+
 // Check whether an expression is a valid assignment destination.
 // This is a recursive function, so we can access the expression through
 // ArrayAccess of PointerOp(Deref).
@@ -55,7 +63,7 @@ void SemaCheck::visit(ArrayAccessExpr *expr) {
   evaluate(expr->getElement());
   if (!Type::checkTypesMatching(expr->getElement()->getType(),
                                 Type::getIntType()))
-    diag.report(expr->getLoc(), DiagID::err_array_access_not_int);
+    error(expr->getLoc(), DiagID::err_array_access_not_int);
 
   // We can only access expressions of array or pointer type.
   evaluate(expr->getArray());
@@ -63,7 +71,7 @@ void SemaCheck::visit(ArrayAccessExpr *expr) {
       expr->getArray()->getType()->getTypeKind() == Type::TypeKind::Pointer)
     expr->setType(expr->getArray()->getType()->getSubtype());
   else
-    diag.report(expr->getLoc(), DiagID::err_array_access_not_array);
+    error(expr->getLoc(), DiagID::err_array_access_not_array);
 }
 
 void SemaCheck::visit(AssignExpr *expr) {
@@ -78,12 +86,16 @@ void SemaCheck::visit(AssignExpr *expr) {
 
   // Evaluating assignment destination.
   evaluate(expr->getDest());
-  if (!isValidAssignDest(expr->getDest(), false))
-    diag.report(expr->getLoc(), DiagID::err_invalid_assign_target);
+  if (!isValidAssignDest(expr->getDest(), false)) {
+    error(expr->getLoc(), DiagID::err_invalid_assign_target);
+    return;
+  }
 
   if (!Type::checkTypesMatching(expr->getDest()->getType(),
-                                expr->getSource()->getType()))
-    diag.report(expr->getLoc(), DiagID::err_incompatible_types);
+                                expr->getSource()->getType())) {
+    error(expr->getLoc(), DiagID::err_incompatible_types);
+    return;
+  }
 
   expr->setType(expr->getDest()->getType());
 }
@@ -96,8 +108,10 @@ void SemaCheck::visit(BinaryArithExpr *expr) {
   auto *rightTy = expr->getRight()->getType();
   if (!Type::checkTypesMatching(leftTy, Type::getIntType()) ||
       !Type::checkTypesMatching(rightTy, Type::getIntType()) ||
-      !Type::checkTypesMatching(leftTy, rightTy))
-    diag.report(expr->getLoc(), DiagID::err_arith_type);
+      !Type::checkTypesMatching(leftTy, rightTy)) {
+    error(expr->getLoc(), DiagID::err_arith_type);
+    return;
+  }
 
   expr->setType(leftTy);
 }
@@ -113,21 +127,27 @@ void SemaCheck::visit(BinaryLogicalExpr *expr) {
       (kind == BinaryLogicalExpr::BinaryLogicalExprKind::Or)) {
     if (!Type::checkTypesMatching(leftTy, Type::getBoolType()) ||
         !Type::checkTypesMatching(rightTy, Type::getBoolType()) ||
-        !Type::checkTypesMatching(leftTy, rightTy))
-      diag.report(expr->getLoc(), DiagID::err_logic_type);
+        !Type::checkTypesMatching(leftTy, rightTy)) {
+      error(expr->getLoc(), DiagID::err_logic_type);
+      return;
+    }
 
     expr->setType(leftTy);
   } else if ((kind == BinaryLogicalExpr::BinaryLogicalExprKind::Eq) ||
              (kind == BinaryLogicalExpr::BinaryLogicalExprKind::NotEq)) {
-    if (!Type::checkTypesMatching(leftTy, rightTy))
-      diag.report(expr->getLoc(), DiagID::err_incompatible_types);
+    if (!Type::checkTypesMatching(leftTy, rightTy)) {
+      error(expr->getLoc(), DiagID::err_incompatible_types);
+      return;
+    }
 
     expr->setType(Type::getBoolType());
   } else {
     if (!Type::checkTypesMatching(leftTy, Type::getIntType()) ||
         !Type::checkTypesMatching(rightTy, Type::getIntType()) ||
-        !Type::checkTypesMatching(leftTy, rightTy))
-      diag.report(expr->getLoc(), DiagID::err_arith_type);
+        !Type::checkTypesMatching(leftTy, rightTy)) {
+      error(expr->getLoc(), DiagID::err_arith_type);
+      return;
+    }
 
     expr->setType(Type::getBoolType());
   }
@@ -139,7 +159,7 @@ void SemaCheck::visit(CallExpr *expr) {
   // Function should be declared at the module level.
   auto *funDecl = env->find(expr->getName());
   if (!funDecl) {
-    diag.report(expr->getLoc(), DiagID::err_fun_undefined);
+    error(expr->getLoc(), DiagID::err_fun_undefined);
     return;
   }
 
@@ -149,7 +169,7 @@ void SemaCheck::visit(CallExpr *expr) {
   // Function call and declaration must have a matching number of
   // arguments.
   if (funDeclCast->getArgs().size() != expr->getArgs().size()) {
-    diag.report(expr->getLoc(), DiagID::err_arg_num_mismatch);
+    error(expr->getLoc(), DiagID::err_arg_num_mismatch);
     return;
   }
 
@@ -162,7 +182,7 @@ void SemaCheck::visit(CallExpr *expr) {
     evaluate(callArg);
 
     if (!Type::checkTypesMatching(callArg->getType(), declArg->getType()))
-      diag.report(expr->getLoc(), DiagID::err_arg_type_mismatch);
+      error(expr->getLoc(), DiagID::err_arg_type_mismatch);
   }
 
   expr->setType(funDeclCast->getRetType());
@@ -170,7 +190,6 @@ void SemaCheck::visit(CallExpr *expr) {
 
 void SemaCheck::visit(GroupingExpr *expr) {
   evaluate(expr->getExpr());
-
   expr->setType(expr->getExpr()->getType());
 }
 
@@ -201,15 +220,19 @@ void SemaCheck::visit(PointerOpExpr *expr) {
   auto kind = expr->getPointerOpKind();
 
   if (kind == PointerOpExpr::PointerOpKind::AddressOf) {
-    if (!e->canTakeAddressOf())
-      diag.report(expr->getLoc(), DiagID::err_addrof_target_not_mem);
+    if (!e->canTakeAddressOf()) {
+      error(expr->getLoc(), DiagID::err_addrof_target_not_mem);
+      return;
+    }
 
     auto *exprTy = e->getType();
     expr->setType(new PointerType(exprTy));
   } else {
     // We can only dereference expressions of pointer type.
-    if (e->getType()->getTypeKind() != Type::TypeKind::Pointer)
-      diag.report(expr->getLoc(), DiagID::err_deref_target_not_ptr_mem);
+    if (e->getType()->getTypeKind() != Type::TypeKind::Pointer) {
+      error(expr->getLoc(), DiagID::err_deref_target_not_ptr_mem);
+      return;
+    }
 
     expr->setType(e->getType()->getSubtype());
   }
@@ -221,11 +244,15 @@ void SemaCheck::visit(UnaryExpr *expr) {
   auto exprTy = expr->getExpr()->getType();
   auto kind = expr->getUnaryKind();
   if (kind == UnaryExpr::UnaryExprKind::NegArith) {
-    if (!Type::checkTypesMatching(exprTy, Type::getIntType()))
-      diag.report(expr->getLoc(), DiagID::err_arith_type);
+    if (!Type::checkTypesMatching(exprTy, Type::getIntType())) {
+      error(expr->getLoc(), DiagID::err_arith_type);
+      return;
+    }
   } else {
-    if (!Type::checkTypesMatching(exprTy, Type::getBoolType()))
-      diag.report(expr->getLoc(), DiagID::err_logic_type);
+    if (!Type::checkTypesMatching(exprTy, Type::getBoolType())) {
+      error(expr->getLoc(), DiagID::err_logic_type);
+      return;
+    }
   }
 
   expr->setType(exprTy);
@@ -252,7 +279,7 @@ void SemaCheck::visit(IfStmt *stmt) {
   evaluate(stmt->getCond());
   if (!Type::checkTypesMatching(stmt->getCond()->getType(),
                                 Type::getBoolType()))
-    diag.report(stmt->getLoc(), DiagID::err_cond_not_bool);
+    error(stmt->getLoc(), DiagID::err_cond_not_bool);
 
   // Use RAII to manage the lifetime of scopes.
   {
@@ -273,16 +300,15 @@ void SemaCheck::visit(PrintStmt *stmt) { evaluate(stmt->getPrintExpr()); }
 void SemaCheck::visit(ReturnStmt *stmt) {
   seenReturn = true;
 
-  if (!stmt->getRetExpr())
-    diag.report(stmt->getLoc(), DiagID::err_ret_val_undefined);
-  else
+  if (!stmt->getRetExpr()) {
+    error(stmt->getLoc(), DiagID::err_ret_val_undefined);
+    return;
+  } else
     evaluate(stmt->getRetExpr());
 
-  assert(!Type::checkTypesMatching(stmt->getRetExpr()->getType(),
-                                   Type::getNoneType()));
   if (!Type::checkTypesMatching(currFun->getRetType(),
                                 stmt->getRetExpr()->getType()))
-    diag.report(stmt->getLoc(), DiagID::err_ret_type_mismatch);
+    error(stmt->getLoc(), DiagID::err_ret_type_mismatch);
 }
 
 void SemaCheck::visit(ScanStmt *stmt) {
@@ -300,7 +326,7 @@ void SemaCheck::visit(WhileStmt *stmt) {
   evaluate(stmt->getCond());
   if (!Type::checkTypesMatching(stmt->getCond()->getType(),
                                 Type::getBoolType()))
-    diag.report(stmt->getLoc(), DiagID::err_cond_not_bool);
+    error(stmt->getLoc(), DiagID::err_cond_not_bool);
 
   // Use RAII to manage the lifetime of scopes.
   {
@@ -327,27 +353,33 @@ void SemaCheck::visit(FunDecl *decl) {
 
   // Return value must not be of array type.
   if (decl->getRetType()->getTypeKind() == Type::TypeKind::Array)
-    diag.report(decl->getLoc(), DiagID::err_ret_type_array);
+    error(decl->getLoc(), DiagID::err_ret_type_array);
 
   // Every function must have a return statement.
   if (!seenReturn)
-    diag.report(decl->getLoc(), DiagID::err_no_return);
+    error(decl->getLoc(), DiagID::err_no_return);
 }
 
 void SemaCheck::visit(ModuleDecl *decl) {
-  SemaCheckScopeMgr scopeMgr(*this);
-  // Forward declare everything.
-  for (auto dec : decl->getBody()) {
-    // Report an error if this is a redefinition.
-    if (!env->insert(dec, dec->getName())) {
-      DiagID errId = llvm::isa<FunDecl>(dec) ? DiagID::err_fun_redefine
-                                             : DiagID::err_var_redefine;
-      diag.report(dec->getLoc(), errId);
+  try {
+    SemaCheckScopeMgr scopeMgr(*this);
+    // Forward declare everything.
+    for (auto dec : decl->getBody()) {
+      // Report an error if this is a redefinition.
+      if (!env->insert(dec, dec->getName())) {
+        DiagID errId = llvm::isa<FunDecl>(dec) ? DiagID::err_fun_redefine
+                                               : DiagID::err_var_redefine;
+        error(dec->getLoc(), errId);
+      }
     }
-  }
 
-  for (auto dec : decl->getBody())
-    evaluate(dec);
+    for (auto dec : decl->getBody())
+      evaluate(dec);
+  } catch (SemaError &e) {
+    llvm::errs() << "Exceeding maximum number of semantic errors. Aborting "
+                    "compilation...";
+    return;
+  }
 }
 
 void SemaCheck::visit(VarDecl *decl) {
@@ -360,24 +392,24 @@ void SemaCheck::visit(VarDecl *decl) {
   // module level.
   if (!decl->isGlobal()) {
     if (!env->insert(decl, decl->getName()))
-      diag.report(decl->getLoc(), DiagID::err_var_redefine);
+      error(decl->getLoc(), DiagID::err_var_redefine);
   }
 
   // Initializer must have a compatible type.
   if (decl->getInitializer() &&
       !Type::checkTypesMatching(decl->getType(),
                                 decl->getInitializer()->getType()))
-    diag.report(decl->getLoc(), DiagID::err_incompatible_types);
+    error(decl->getLoc(), DiagID::err_incompatible_types);
 
   // If this is a global variable, the initializer must be an INT or BOOL
   // literal.
   if (decl->isGlobal()) {
     if (Type::checkTypesMatching(decl->getType(), Type::getIntType()) &&
         !llvm::isa<IntLiteralExpr>(decl->getInitializer()))
-      diag.report(decl->getLoc(), DiagID::err_global_init_not_lit);
+      error(decl->getLoc(), DiagID::err_global_init_not_lit);
 
     if (Type::checkTypesMatching(decl->getType(), Type::getBoolType()) &&
         !llvm::isa<BoolLiteralExpr>(decl->getInitializer()))
-      diag.report(decl->getLoc(), DiagID::err_global_init_not_lit);
+      error(decl->getLoc(), DiagID::err_global_init_not_lit);
   }
 }

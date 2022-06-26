@@ -4,11 +4,16 @@
 #include "Diag.h"
 #include "ScopeMgr.h"
 
+#define MAX_SEMANTIC_ERRS 5
+
 namespace mxrlang {
 
 class SemaCheck : public Visitor {
   friend class ScopeMgr<SemaCheck, Decl>;
   using SemaCheckScopeMgr = ScopeMgr<SemaCheck, Decl>;
+
+  // Custom semantic check exception class.
+  class SemaError : public std::exception {};
 
   Environment<Decl> *env = nullptr;
 
@@ -45,6 +50,10 @@ class SemaCheck : public Visitor {
   void visit(FunDecl *decl) override;
   void visit(ModuleDecl *decl) override;
   void visit(VarDecl *decl) override;
+
+  // Report an error and throw an exception if we exceed a certain number
+  // of reported errors.
+  void error(llvm::SMLoc loc, DiagID diagID);
 
   // Check whether an expression is a valid assignment destination.
   // This is a recursive function, so we can access the expression through

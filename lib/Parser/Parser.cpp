@@ -181,10 +181,17 @@ Decl *Parser::funDeclaration() {
       throw error(peek(), DiagID::err_expect, "function argument");
   }
 
+  if (previous().isNot(TokenKind::closedpar))
+    throw error(previous(), DiagID::err_expect, ")");
+
   // Parse the function body
   Nodes body;
   while (!match(TokenKind::kw_NUF) && !isAtEnd())
     body.emplace_back(declaration());
+
+  if (previous().isNot(TokenKind::kw_NUF))
+    throw error(previous(), DiagID::err_expect,
+                "NUF at the end of function definition");
 
   return new FunDecl(funName.getData(), retType, std::move(args),
                      std::move(body), funToken.getLocation());
@@ -216,10 +223,11 @@ Stmt *Parser::exprStmt() {
   Expr *expr = expression();
   consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
 
-  return new ExprStmt(expr, previous().getLocation());
+  return new ExprStmt(expr, expr->getLoc());
 }
 
 Stmt *Parser::ifStmt() {
+  auto loc = previous().getLocation();
   Nodes thenBody;
   Nodes elseBody;
   // Parse the IF condition.
@@ -231,18 +239,26 @@ Stmt *Parser::ifStmt() {
   while (!(match(TokenKind::kw_ELSE) || match(TokenKind::kw_FI)) && !isAtEnd())
     thenBody.push_back(declaration());
 
+  if (!previous().isOneOf(TokenKind::kw_ELSE, TokenKind::kw_FI))
+    throw error(previous(), DiagID::err_expect,
+                "FI at the end of IF statement");
+
   // Parse the statements in the ELSE block.
   if (previous().getKind() == TokenKind::kw_ELSE) {
     while (!match(TokenKind::kw_FI) && !isAtEnd()) {
       elseBody.push_back(declaration());
     }
+
+    if (previous().isNot(TokenKind::kw_FI))
+      throw error(previous(), DiagID::err_expect,
+                  "FI at the end of IF statement");
   }
 
-  return new IfStmt(cond, std::move(thenBody), std::move(elseBody),
-                    previous().getLocation());
+  return new IfStmt(cond, std::move(thenBody), std::move(elseBody), loc);
 }
 
 Stmt *Parser::whileStmt() {
+  auto loc = previous().getLocation();
   Nodes body;
   // Parse the WHILE condition.
   Expr *cond = expression();
@@ -253,34 +269,41 @@ Stmt *Parser::whileStmt() {
   while (!match(TokenKind::kw_ELIHW) && !isAtEnd())
     body.push_back(declaration());
 
-  return new WhileStmt(cond, std::move(body), previous().getLocation());
+  if (previous().isNot(TokenKind::kw_ELIHW))
+    throw error(previous(), DiagID::err_expect,
+                "ELIHW at the end of WHILE statement");
+
+  return new WhileStmt(cond, std::move(body), loc);
 }
 
 Stmt *Parser::printStmt() {
+  auto loc = previous().getLocation();
   Expr *printExpr = expression();
 
   consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
-  return new PrintStmt(printExpr, previous().getLocation());
+  return new PrintStmt(printExpr, loc);
 }
 
 Stmt *Parser::returnStmt() {
+  auto loc = previous().getLocation();
   Expr *retExpr = nullptr;
 
   if (!check(TokenKind::semicolon))
     retExpr = expression();
 
   consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
-  return new ReturnStmt(retExpr, previous().getLocation());
+  return new ReturnStmt(retExpr, loc);
 }
 
 Stmt *Parser::scanStmt() {
+  auto loc = previous().getLocation();
   Expr *scanExpr = expression();
 
   if (!llvm::isa<LoadExpr>(scanExpr))
     throw error(peek(), DiagID::err_expect, "variable"s);
 
   consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
-  return new ScanStmt(scanExpr, previous().getLocation());
+  return new ScanStmt(scanExpr, loc);
 }
 
 Expr *Parser::expression() { return assignment(); }
@@ -302,9 +325,8 @@ Expr *Parser::logicalOr() {
   while (match(TokenKind::logicor)) {
     auto opString = previous().getData();
     auto *right = logicalAnd();
-    expr =
-        new BinaryLogicalExpr(BinaryLogicalExpr::BinaryLogicalExprKind::Or,
-                              expr, right, opString, previous().getLocation());
+    expr = new BinaryLogicalExpr(BinaryLogicalExpr::BinaryLogicalExprKind::Or,
+                                 expr, right, opString, expr->getLoc());
   }
 
   return expr;
@@ -316,9 +338,8 @@ Expr *Parser::logicalAnd() {
   while (match(TokenKind::logicand)) {
     auto opString = previous().getData();
     auto *right = equality();
-    expr =
-        new BinaryLogicalExpr(BinaryLogicalExpr::BinaryLogicalExprKind::And,
-                              expr, right, opString, previous().getLocation());
+    expr = new BinaryLogicalExpr(BinaryLogicalExpr::BinaryLogicalExprKind::And,
+                                 expr, right, opString, expr->getLoc());
   }
 
   return expr;
@@ -342,8 +363,7 @@ Expr *Parser::equality() {
     }
 
     auto *right = comparison();
-    expr = new BinaryLogicalExpr(kind, expr, right, opString,
-                                 previous().getLocation());
+    expr = new BinaryLogicalExpr(kind, expr, right, opString, expr->getLoc());
   }
 
   return expr;
@@ -374,8 +394,7 @@ Expr *Parser::comparison() {
     }
 
     auto *right = addSub();
-    expr = new BinaryLogicalExpr(kind, expr, right, opString,
-                                 previous().getLocation());
+    expr = new BinaryLogicalExpr(kind, expr, right, opString, expr->getLoc());
   }
 
   return expr;
@@ -399,8 +418,7 @@ Expr *Parser::addSub() {
     }
 
     auto *right = mulDiv();
-    expr = new BinaryArithExpr(kind, expr, right, opString,
-                               previous().getLocation());
+    expr = new BinaryArithExpr(kind, expr, right, opString, expr->getLoc());
   }
 
   return expr;
@@ -424,8 +442,7 @@ Expr *Parser::mulDiv() {
     }
 
     auto *right = unary();
-    expr = new BinaryArithExpr(kind, expr, right, opString,
-                               previous().getLocation());
+    expr = new BinaryArithExpr(kind, expr, right, opString, expr->getLoc());
   }
 
   return expr;
@@ -447,7 +464,7 @@ Expr *Parser::unary() {
     }
 
     auto *expr = primary();
-    return new UnaryExpr(kind, expr, opString, previous().getLocation());
+    return new UnaryExpr(kind, expr, opString, expr->getLoc());
   }
 
   if (match(TokenKind::ampersand) || match(TokenKind::star)) {
@@ -465,11 +482,11 @@ Expr *Parser::unary() {
     }
 
     Expr *expr = primary();
-    expr = new PointerOpExpr(kind, expr, opString, previous().getLocation());
+    expr = new PointerOpExpr(kind, expr, opString, expr->getLoc());
     if (kind == PointerOpExpr::PointerOpKind::Dereference)
       // Always perform the load after dereferencing. Semantic check will remove
       // the load if we are dereferencing for writing.
-      expr = new LoadExpr(expr, previous().getLocation());
+      expr = new LoadExpr(expr, expr->getLoc());
 
     return expr;
   }
@@ -506,7 +523,7 @@ Expr *Parser::identifier() {
 
     // Always perform the load after array access. Semantic check will remove
     // the load if we are accessing for writing.
-    return new LoadExpr(expr, previous().getLocation());
+    return new LoadExpr(expr, name.getLocation());
   } else {
     // Otherwise, it's a variable access.
     //
@@ -528,6 +545,9 @@ Expr *Parser::funCall(const Token &name) {
     if (seenComma && (peek().getKind() == TokenKind::closedpar))
       throw error(peek(), DiagID::err_expect, "expression");
   }
+
+  if (previous().isNot(TokenKind::closedpar))
+    throw error(previous(), DiagID::err_expect, ")");
 
   return new CallExpr(name.getData(), std::move(args), name.getLocation());
 }
@@ -553,11 +573,9 @@ ModuleDecl *Parser::parse() {
   Decls decls;
 
   while (!isAtEnd()) {
-    auto *decl = llvm::dyn_cast<Decl>(declaration());
-    if (!decl) {
-      (void)error(peek(), DiagID::err_expect, "declaration");
+    auto *decl = llvm::dyn_cast_or_null<Decl>(declaration());
+    if (!decl)
       return nullptr;
-    }
     decls.push_back(decl);
 
     // This is a global variable, so mark it as global.

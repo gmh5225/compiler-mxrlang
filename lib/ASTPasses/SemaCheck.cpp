@@ -153,7 +153,6 @@ void SemaCheck::visit(BinaryLogicalExpr *expr) {
   }
 }
 
-void SemaCheck::visit(BoolLiteralExpr *expr) {}
 
 void SemaCheck::visit(CallExpr *expr) {
   // Function should be declared at the module level.
@@ -193,7 +192,6 @@ void SemaCheck::visit(GroupingExpr *expr) {
   expr->setType(expr->getExpr()->getType());
 }
 
-void SemaCheck::visit(IntLiteralExpr *expr) {}
 
 void SemaCheck::visit(LoadExpr *expr) {
   evaluate(expr->getExpr());

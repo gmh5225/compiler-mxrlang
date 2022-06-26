@@ -28,6 +28,7 @@ class Node;
 
 class Expr;
 class ArrayAccessExpr;
+
 class AssignExpr;
 class BinaryArithExpr;
 class BinaryLogicalExpr;
@@ -62,29 +63,29 @@ using FunDeclArgs = std::vector<VarDecl *>;
 // Inherit from Visitor class in order to create an AST traversal class.
 class Visitor {
 public:
-  virtual void visit(ArrayAccessExpr *expr) = 0;
-  virtual void visit(AssignExpr *expr) = 0;
-  virtual void visit(BinaryArithExpr *expr) = 0;
-  virtual void visit(BinaryLogicalExpr *expr) = 0;
-  virtual void visit(BoolLiteralExpr *expr) = 0;
-  virtual void visit(CallExpr *expr) = 0;
-  virtual void visit(GroupingExpr *expr) = 0;
-  virtual void visit(IntLiteralExpr *expr) = 0;
-  virtual void visit(LoadExpr *expr) = 0;
-  virtual void visit(PointerOpExpr *expr) = 0;
-  virtual void visit(UnaryExpr *expr) = 0;
-  virtual void visit(VarExpr *expr) = 0;
+  virtual void visit(ArrayAccessExpr *expr) {}
+  virtual void visit(AssignExpr *expr) {}
+  virtual void visit(BinaryArithExpr *expr) {}
+  virtual void visit(BinaryLogicalExpr *expr) {}
+  virtual void visit(BoolLiteralExpr *expr) {}
+  virtual void visit(CallExpr *expr) {}
+  virtual void visit(GroupingExpr *expr) {}
+  virtual void visit(IntLiteralExpr *expr) {}
+  virtual void visit(LoadExpr *expr) {}
+  virtual void visit(PointerOpExpr *expr) {}
+  virtual void visit(UnaryExpr *expr) {}
+  virtual void visit(VarExpr *expr) {}
 
-  virtual void visit(ExprStmt *stmt) = 0;
-  virtual void visit(IfStmt *stmt) = 0;
-  virtual void visit(PrintStmt *stmt) = 0;
-  virtual void visit(ReturnStmt *stmt) = 0;
-  virtual void visit(ScanStmt *stmt) = 0;
-  virtual void visit(WhileStmt *stmt) = 0;
+  virtual void visit(ExprStmt *stmt) {}
+  virtual void visit(IfStmt *stmt) {}
+  virtual void visit(PrintStmt *stmt) {}
+  virtual void visit(ReturnStmt *stmt) {}
+  virtual void visit(ScanStmt *stmt) {}
+  virtual void visit(WhileStmt *stmt) {}
 
-  virtual void visit(FunDecl *decl) = 0;
-  virtual void visit(ModuleDecl *decl) = 0;
-  virtual void visit(VarDecl *decl) = 0;
+  virtual void visit(FunDecl *decl) {}
+  virtual void visit(ModuleDecl *decl) {}
+  virtual void visit(VarDecl *decl) {}
 };
 
 // Node class describes a single AST node.

@@ -38,6 +38,10 @@ static llvm::cl::opt<bool>
     emitLLVM("emit-llvm", llvm::cl::desc("Emit IR code instead of assembler"),
              llvm::cl::init(false));
 
+static llvm::cl::opt<bool>
+    printAST("print-ast", llvm::cl::desc("Print the AST of the modules"),
+             llvm::cl::init(false));
+
 static llvm::cl::opt<signed char> OptLevel(
     llvm::cl::desc("Setting the optimization level:"), llvm::cl::ZeroOrMore,
     llvm::cl::values(clEnumValN(3, "O", "Equivalent to -O3"),
@@ -240,8 +244,10 @@ int main(int argc_, const char **argv_) {
       continue;
 
     // Helper pass which prints the AST.
-    ASTPrinter astPrinter;
-    astPrinter.run(moduleDecl);
+    if (printAST) {
+      ASTPrinter astPrinter;
+      astPrinter.run(moduleDecl);
+    }
 
     if (diag.getNumErrs() > 0)
       continue;

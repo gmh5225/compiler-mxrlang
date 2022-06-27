@@ -28,7 +28,7 @@ class Node;
 
 class Expr;
 class ArrayAccessExpr;
-
+class ArrayInitExpr;
 class AssignExpr;
 class BinaryArithExpr;
 class BinaryLogicalExpr;
@@ -64,6 +64,7 @@ using FunDeclArgs = std::vector<VarDecl *>;
 class Visitor {
 public:
   virtual void visit(ArrayAccessExpr *expr) {}
+  virtual void visit(ArrayInitExpr *expr) {}
   virtual void visit(AssignExpr *expr) {}
   virtual void visit(BinaryArithExpr *expr) {}
   virtual void visit(BinaryLogicalExpr *expr) {}
@@ -115,6 +116,7 @@ class Expr : public Node {
 public:
   enum class ExprKind {
     ArrayAccess,
+    ArrayInit,
     Assign,
     BinaryArith,
     BinaryLogical,
@@ -206,6 +208,20 @@ public:
   CLASSOF(Expr, ArrayAccess)
 
   bool canTakeAddressOf() override { return array->canTakeAddressOf(); }
+};
+
+// Describes an array initializer list (e.g. VAR arr : INT[3] := {1,2,3};)
+class ArrayInitExpr : public Expr {
+  Exprs vals;
+
+public:
+  ArrayInitExpr(Exprs vals, llvm::SMLoc loc)
+      : Expr(ExprKind::ArrayInit, loc), vals(std::move(vals)) {}
+
+  Exprs &getVals() { return vals; }
+
+  ACCEPT()
+  CLASSOF(Expr, ArrayInit)
 };
 
 // Describes an assignment (e.g. x := 5).

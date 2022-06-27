@@ -65,6 +65,17 @@ void CodeGen::visit(ArrayAccessExpr *expr) {
   }
 }
 
+void CodeGen::visit(ArrayInitExpr *expr) {
+  llvm::SmallVector<llvm::Constant *> vals;
+  for (auto *val : expr->getVals()) {
+    evaluate(val);
+    vals.push_back(llvm::dyn_cast<llvm::Constant>(interResult));
+  }
+
+  interResult = llvm::ConstantArray::get(
+      llvm::dyn_cast<llvm::ArrayType>(expr->getType()->toLLVMType(ctx)), vals);
+}
+
 void CodeGen::visit(AssignExpr *expr) {
   evaluate(expr->getSource());
   auto *source = interResult;
@@ -380,11 +391,12 @@ void CodeGen::visit(VarDecl *decl) {
                               decl->getType()->toLLVMType(ctx));
     auto *globalVar = module->getNamedGlobal(decl->getName());
     globalVar->setLinkage(llvm::GlobalValue::PrivateLinkage);
+    globalVar->setAlignment(
+        llvm::MaybeAlign(getModule()->getDataLayout().getPrefTypeAlignment(
+            decl->getType()->toLLVMType(ctx))));
     // ... and register it in the scope manager.
     env->insert(globalVar, decl->getName());
 
-    // If the initializer exists, it will be either an INT or a BOOL literal.
-    // It's safe to to dyn_cast here because the check is done in SemaCheck.
     if (decl->getInitializer()) {
       evaluate(decl->getInitializer());
       globalVar->setInitializer(llvm::dyn_cast<llvm::Constant>(interResult));

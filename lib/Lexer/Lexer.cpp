@@ -72,11 +72,13 @@ void Lexer::next(Token &result) {
     break;
 
       CASE(']', TokenKind::closedbracket)
+      CASE('}', TokenKind::closedcurly)
       CASE(')', TokenKind::closedpar)
       CASE(',', TokenKind::comma)
       CASE('=', TokenKind::equal)
       CASE('-', TokenKind::minus)
       CASE('[', TokenKind::openbracket)
+      CASE('{', TokenKind::opencurly)
       CASE('(', TokenKind::openpar)
       CASE('+', TokenKind::plus)
       CASE(';', TokenKind::semicolon)

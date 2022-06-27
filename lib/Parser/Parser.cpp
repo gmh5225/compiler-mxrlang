@@ -93,7 +93,9 @@ Parser::ParserError Parser::error(const Token &tok, DiagID id,
 
 // Helper which creates a VarStmt while parsing variable declarations,
 // or function declaration arguments.
-VarDecl *Parser::parseSingleVar(bool isFunArg) {
+VarDecl *Parser::parseSingleVar(bool isFunArg, bool isGlobalScope) {
+  assert(!isFunArg || !isGlobalScope);
+
   // Parse the variable name.
   const Token &name =
       consume({TokenKind::identifier}, DiagID::err_expect, "identifer"s);
@@ -113,7 +115,7 @@ VarDecl *Parser::parseSingleVar(bool isFunArg) {
     varType = llvm::dyn_cast<ArrayType>(varType)->decay();
 
   return new VarDecl(name.getData(), initializer, varType,
-                     /* global= */ false, name.getLocation());
+                     /* global= */ isGlobalScope, name.getLocation());
 }
 
 // Parse a type declaration.
@@ -144,11 +146,11 @@ Type *Parser::parseType() {
 
 // FIXME: We currently allow parsing internal functions,
 // although they are not implemented.
-Node *Parser::declaration() {
+Node *Parser::declaration(bool isGlobalScope) {
   try {
-    if (match(TokenKind::kw_VAR))
-      return varDeclaration();
-    else if (match(TokenKind::kw_FUN))
+    if (match(TokenKind::kw_VAR)) {
+      return varDeclaration(isGlobalScope);
+    } else if (match(TokenKind::kw_FUN))
       return funDeclaration();
     return statement();
   } catch (ParserError &e) {
@@ -197,8 +199,8 @@ Decl *Parser::funDeclaration() {
                      std::move(body), funToken.getLocation());
 }
 
-Decl *Parser::varDeclaration() {
-  auto *varDecl = parseSingleVar(false);
+Decl *Parser::varDeclaration(bool isGlobalScope) {
+  auto *varDecl = parseSingleVar(false, /* global= */ isGlobalScope);
   consume({TokenKind::semicolon}, DiagID::err_expect, ";"s);
 
   return varDecl;
@@ -502,6 +504,8 @@ Expr *Parser::primary() {
     auto *expr = expression();
     consume({TokenKind::closedpar}, DiagID::err_expect, ")"s);
     return new GroupingExpr(expr, previous().getLocation());
+  } else if (peek().is(TokenKind::opencurly)) {
+    return arrayInit();
   } else if (match(TokenKind::integer_literal))
     return new IntLiteralExpr(previous().getData(), previous().getLocation());
   else if (match(TokenKind::identifier))
@@ -540,10 +544,10 @@ Expr *Parser::funCall(const Token &name) {
     args.push_back(expression());
 
     bool seenComma = match(TokenKind::comma);
-    if (!seenComma && (peek().getKind() != TokenKind::closedpar))
-      throw error(peek(), DiagID::err_expect, ",");
-    if (seenComma && (peek().getKind() == TokenKind::closedpar))
-      throw error(peek(), DiagID::err_expect, "expression");
+    if (!seenComma && peek().isNot(TokenKind::closedpar))
+      throw error(previous(), DiagID::err_expect, ",");
+    if (seenComma && peek().is(TokenKind::closedpar))
+      throw error(previous(), DiagID::err_expect, "expression");
   }
 
   if (previous().isNot(TokenKind::closedpar))
@@ -561,10 +565,42 @@ Expr *Parser::arrayAccess(Expr *var) {
     elements.push_back(element);
   } while (match(TokenKind::openbracket));
 
-  for (auto it = elements.rbegin(); it != elements.rend(); ++it)
-    var = new ArrayAccessExpr(var, *it, previous().getLocation());
+  for (auto *element : elements)
+    var = new ArrayAccessExpr(var, element, previous().getLocation());
 
   return var;
+}
+
+Expr *Parser::arrayInit() {
+  Exprs vals;
+
+  match(TokenKind::opencurly);
+  auto errTok = previous();
+  // If we see '{', all elements of this init list must be other init lists.
+  // If we do not see '{', none of the vals in the list must be other
+  // init lists.
+  bool isAllList = peek().is(TokenKind::opencurly);
+  while (!match(TokenKind::closedcurly)) {
+    Expr *val = nullptr;
+    if (isAllList) {
+      val = arrayInit();
+      if (val->getKind() != Expr::ExprKind::ArrayInit)
+        throw error(errTok, DiagID::err_array_init_not_uniform, "");
+    } else {
+      val = expression();
+      if (val->getKind() == Expr::ExprKind::ArrayInit)
+        throw error(errTok, DiagID::err_array_init_not_uniform, "");
+    }
+    vals.push_back(val);
+
+    bool seenComma = match(TokenKind::comma);
+    if (!seenComma && peek().isNot(TokenKind::closedcurly))
+      throw error(previous(), DiagID::err_expect, ",");
+    if (seenComma && peek().is(TokenKind::closedcurly))
+      throw error(previous(), DiagID::err_expect, "expression");
+  }
+
+  return new ArrayInitExpr(vals, errTok.getLocation());
 }
 
 // Parse the token stream and return the root of the AST.
@@ -573,14 +609,10 @@ ModuleDecl *Parser::parse() {
   Decls decls;
 
   while (!isAtEnd()) {
-    auto *decl = llvm::dyn_cast_or_null<Decl>(declaration());
+    auto *decl = llvm::dyn_cast_or_null<Decl>(declaration(true));
     if (!decl)
       return nullptr;
     decls.push_back(decl);
-
-    // This is a global variable, so mark it as global.
-    if (auto *globalVarDecl = llvm::dyn_cast<VarDecl>(decl))
-      globalVarDecl->setGlobal(true);
   }
 
   ModuleDecl *moduleStmt =

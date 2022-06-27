@@ -53,7 +53,7 @@ public:
   TypeKind getTypeKind() const { return type; }
 
   // Return the subtype (only for array and pointer types).
-  virtual Type *getSubtype() const { return nullptr; }
+  virtual Type *getSubtype() const { return getNoneType(); }
 
   // Convert the type to string. Useful when printing out the type.
   virtual std::string toString() const { return ""; }
@@ -79,6 +79,18 @@ public:
   static BasicType noneType;
 
   BasicTypeKind getBasicTypeKind() const { return basicType; }
+
+  // Return width of the type in bits.
+  int8_t getWidth() const {
+    switch (basicType) {
+    case BasicTypeKind::Bool:
+      return 1;
+    case BasicTypeKind::Int:
+      return 64;
+    default:
+      return 0;
+    }
+  }
 
   // Convert the type to string. Useful when printing out the type.
   std::string toString() const override {

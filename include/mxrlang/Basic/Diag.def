@@ -8,6 +8,7 @@ DIAG(err_unknown_token, Error, "Unknown token.")
 // Parser errors
 DIAG(err_invalid_assign_target, Error, "Invalid assignment target.")
 DIAG(err_expect, Error, "Expected {0}.")
+DIAG(err_array_init_not_uniform, Error, "Elements of array initializer list must be all initializer lists or all expressions.")
 
 // Semantic check errors
 DIAG(err_var_redefine, Error, "Redefinition of an existing variable.")
@@ -24,11 +25,11 @@ DIAG(err_arith_type, Error, "Arithmetic operators expect operands of INT type.")
 DIAG(err_logic_type, Error, "Logical operators expect operands of BOOL type.")
 DIAG(err_arg_num_mismatch, Error, "Number of function call and declaration arguments mismatching.")
 DIAG(err_arg_type_mismatch, Error, "Type of function call and declaration argument mismatching.")
-DIAG(err_global_init_not_lit, Error, "Initializer of the global variable must be of corresponding literal type.")
 DIAG(err_addrof_target_not_mem, Error, "Can take address only of in-memory variables.")
 DIAG(err_deref_target_not_ptr_mem, Error, "Can dereference only pointers to in-memory variables.")
 DIAG(err_array_size_not_int, Error, "Array size can only be specified by an integer.")
 DIAG(err_array_access_not_int, Error, "Array index must be of integer type.")
 DIAG(err_array_access_not_array, Error, "Indexed variable must be of array or pointer type.")
+DIAG(err_array_init_not_same_type, Error, "Array initializer list values must be of the same type.")
 
 #undef DIAG

@@ -46,15 +46,15 @@ class Parser {
 
   // Helper which creates a VarDecl while parsing variable declarations,
   // or function declaration arguments.
-  VarDecl *parseSingleVar(bool isFunArg);
+  VarDecl *parseSingleVar(bool isFunArg, bool isGlobalScope = false);
 
   // Parse a type declaration.
   Type *parseType();
 
   // Productions.
-  Node *declaration();
+  Node *declaration(bool isGlobalScope = false);
   Decl *funDeclaration();
-  Decl *varDeclaration();
+  Decl *varDeclaration(bool isGlobalScope);
 
   Stmt *statement();
   Stmt *exprStmt();
@@ -77,6 +77,7 @@ class Parser {
   Expr *identifier();
   Expr *funCall(const Token &name);
   Expr *arrayAccess(Expr *var);
+  Expr *arrayInit();
 
 public:
   Parser(Tokens &tokens, Diag &diag)

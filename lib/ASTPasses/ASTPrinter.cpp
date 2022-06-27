@@ -30,6 +30,16 @@ void ASTPrinter::visit(ArrayAccessExpr *expr) {
   out() << ")";
 }
 
+// { val1, val2, val3, ... }
+void ASTPrinter::visit(ArrayInitExpr *expr) {
+  out() << "{ ";
+  for (auto *val : expr->getVals()) {
+    evaluate(val);
+    out() << " ";
+  }
+  out() << "}";
+}
+
 // (= (dest, dest, dest, ....) (source))
 void ASTPrinter::visit(AssignExpr *expr) {
   out() << "(= ";

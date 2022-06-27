@@ -74,6 +74,23 @@ void SemaCheck::visit(ArrayAccessExpr *expr) {
     error(expr->getLoc(), DiagID::err_array_access_not_array);
 }
 
+void SemaCheck::visit(ArrayInitExpr *expr) {
+  for (auto *val : expr->getVals())
+    evaluate(val);
+
+  // All vals must have the same type.
+  auto *ty = expr->getVals().front()->getType();
+  if (std::any_of(expr->getVals().begin(), expr->getVals().end(),
+                  [&](const Expr *val) {
+                    return !Type::checkTypesMatching(val->getType(), ty, false);
+                  })) {
+    error(expr->getLoc(), DiagID::err_array_init_not_same_type);
+    return;
+  }
+
+  expr->setType(new ArrayType(ty, expr->getVals().size()));
+}
+
 void SemaCheck::visit(AssignExpr *expr) {
   evaluate(expr->getSource());
 
@@ -153,7 +170,6 @@ void SemaCheck::visit(BinaryLogicalExpr *expr) {
   }
 }
 
-
 void SemaCheck::visit(CallExpr *expr) {
   // Function should be declared at the module level.
   auto *funDecl = env->find(expr->getName());
@@ -191,7 +207,6 @@ void SemaCheck::visit(GroupingExpr *expr) {
   evaluate(expr->getExpr());
   expr->setType(expr->getExpr()->getType());
 }
-
 
 void SemaCheck::visit(LoadExpr *expr) {
   evaluate(expr->getExpr());
@@ -398,16 +413,4 @@ void SemaCheck::visit(VarDecl *decl) {
       !Type::checkTypesMatching(decl->getType(),
                                 decl->getInitializer()->getType()))
     error(decl->getLoc(), DiagID::err_incompatible_types);
-
-  // If this is a global variable, the initializer must be an INT or BOOL
-  // literal.
-  if (decl->isGlobal()) {
-    if (Type::checkTypesMatching(decl->getType(), Type::getIntType()) &&
-        !llvm::isa<IntLiteralExpr>(decl->getInitializer()))
-      error(decl->getLoc(), DiagID::err_global_init_not_lit);
-
-    if (Type::checkTypesMatching(decl->getType(), Type::getBoolType()) &&
-        !llvm::isa<BoolLiteralExpr>(decl->getInitializer()))
-      error(decl->getLoc(), DiagID::err_global_init_not_lit);
-  }
 }

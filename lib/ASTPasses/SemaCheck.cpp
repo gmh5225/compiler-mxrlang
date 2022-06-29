@@ -30,9 +30,6 @@ bool SemaCheck::isValidAssignDest(Expr *expr, bool arrayAccessOrDeref) {
   if (auto *loadExpr = llvm::dyn_cast<LoadExpr>(expr))
     return isValidAssignDest(loadExpr->getExpr(), arrayAccessOrDeref);
 
-  if (auto *groupingExpr = llvm::dyn_cast<GroupingExpr>(expr))
-    return isValidAssignDest(groupingExpr->getExpr(), arrayAccessOrDeref);
-
   if (auto *arrayAccess = llvm::dyn_cast<ArrayAccessExpr>(expr))
     return isValidAssignDest(arrayAccess->getArray(), true);
 
@@ -201,11 +198,6 @@ void SemaCheck::visit(CallExpr *expr) {
   }
 
   expr->setType(funDeclCast->getRetType());
-}
-
-void SemaCheck::visit(GroupingExpr *expr) {
-  evaluate(expr->getExpr());
-  expr->setType(expr->getExpr()->getType());
 }
 
 void SemaCheck::visit(LoadExpr *expr) {
@@ -395,6 +387,42 @@ void SemaCheck::visit(ModuleDecl *decl) {
   }
 }
 
+// Lower the array initialization list into a list of assignments to
+// individual array elements.
+void SemaCheck::lowerArrayInit(Type *ty, ArrayInitExpr *init,
+                               std::vector<uint64_t> indices, Exprs &exprs,
+                               VarDecl *array) {
+  auto *arrayTy = llvm::dyn_cast<ArrayType>(ty);
+  if (llvm::isa<ArrayType>(arrayTy->getSubtype())) {
+    for (uint64_t ind = 0; ind < arrayTy->getElNum(); ind++) {
+      auto new_indices = indices;
+      new_indices.push_back(ind);
+      lowerArrayInit(arrayTy->getSubtype(),
+                     llvm::dyn_cast<ArrayInitExpr>(init->getVals().at(ind)),
+                     new_indices, exprs, array);
+    }
+  } else {
+    for (uint64_t ind = 0; ind < arrayTy->getElNum(); ind++) {
+      auto new_indices = indices;
+      new_indices.push_back(ind);
+      Expr *access = new VarExpr(array->getName(), array->getLoc());
+      evaluate(access);
+      for (auto new_ind : new_indices) {
+        access = new ArrayAccessExpr(
+            access,
+            new IntLiteralExpr(std::to_string(new_ind), access->getLoc()),
+            access->getLoc());
+        evaluate(access);
+      }
+
+      auto *assignment =
+          new AssignExpr(access, init->getVals().at(ind), access->getLoc());
+      evaluate(assignment);
+      exprs.push_back(assignment);
+    }
+  }
+}
+
 void SemaCheck::visit(VarDecl *decl) {
   // First check the initializer, in case the variable is referencing itself.
   if (decl->getInitializer())
@@ -413,4 +441,17 @@ void SemaCheck::visit(VarDecl *decl) {
       !Type::checkTypesMatching(decl->getType(),
                                 decl->getInitializer()->getType()))
     error(decl->getLoc(), DiagID::err_incompatible_types);
+
+  // If this is a local variable of array type, and it has an initializer,
+  // lower the initialization into a list of expressions, each representing
+  // an assignment of an initialization expression to an array member.
+  if (!decl->isGlobal() && llvm::isa<ArrayType>(decl->getType()) &&
+      decl->getInitializer()) {
+    Exprs exprs;
+    auto *initializer = llvm::dyn_cast<ArrayInitExpr>(decl->getInitializer());
+    lowerArrayInit(decl->getType(), initializer, {}, exprs, decl);
+    decl->setLoweredArrayInit(std::move(exprs));
+
+    decl->setInitializer(nullptr);
+  }
 }

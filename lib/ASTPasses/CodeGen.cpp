@@ -170,8 +170,6 @@ void CodeGen::visit(CallExpr *expr) {
   interResult = builder.CreateCall(callee, args, "calltmp");
 }
 
-void CodeGen::visit(GroupingExpr *expr) { evaluate(expr->getExpr()); }
-
 void CodeGen::visit(IntLiteralExpr *expr) {
   auto *lit = llvm::ConstantInt::get(expr->getType()->toLLVMType(ctx),
                                      expr->getValue());
@@ -416,6 +414,15 @@ void CodeGen::visit(VarDecl *decl) {
     if (decl->getInitializer()) {
       evaluate(decl->getInitializer());
       builder.CreateStore(interResult, alloca);
+    }
+
+    // If this is a local variable of array type, and it has an initializer,
+    // lower the initialization into a list of expressions, each representing
+    // an assignment of an initialization expression to an array member.
+    if (decl->getLoweredArrayInit().size()) {
+      assert(!decl->getInitializer());
+      for (auto *expr : decl->getLoweredArrayInit())
+        evaluate(expr);
     }
   }
 }

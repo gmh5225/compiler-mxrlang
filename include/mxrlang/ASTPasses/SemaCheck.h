@@ -32,7 +32,6 @@ class SemaCheck : public Visitor {
   void visit(BinaryArithExpr *expr) override;
   void visit(BinaryLogicalExpr *expr) override;
   void visit(CallExpr *expr) override;
-  void visit(GroupingExpr *expr) override;
   void visit(LoadExpr *expr) override;
   void visit(PointerOpExpr *expr) override;
   void visit(UnaryExpr *expr) override;
@@ -58,6 +57,12 @@ class SemaCheck : public Visitor {
   // This is a recursive function, so we can access the expression through
   // ArrayAccess of PointerOp(Deref).
   bool isValidAssignDest(Expr *expr, bool arrayAccessOrDeref);
+
+  // Lower the array initialization list into a list of assignments to
+  // individual array elements.
+  void lowerArrayInit(Type *ty, ArrayInitExpr *init,
+                      std::vector<uint64_t> indices, Exprs &exprs,
+                      VarDecl *array);
 
   // Helper function for evaluating an expression or a statement.
   template <typename T> void evaluate(const T expr) { expr->accept(this); }

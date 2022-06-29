@@ -73,13 +73,6 @@ void ASTPrinter::visit(CallExpr *expr) {
   out() << ")";
 }
 
-// (group (expr))
-void ASTPrinter::visit(GroupingExpr *expr) {
-  out() << "(group " + expr->getType()->toString() + " ";
-  evaluate(expr->getExpr());
-  out() << ")";
-}
-
 // (intLiteral int)
 void ASTPrinter::visit(IntLiteralExpr *expr) {
   // Convert APSInt to string.

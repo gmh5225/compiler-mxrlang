@@ -54,7 +54,6 @@ class CodeGen : public Visitor {
   void visit(BinaryLogicalExpr *expr) override;
   void visit(BoolLiteralExpr *expr) override;
   void visit(CallExpr *expr) override;
-  void visit(GroupingExpr *expr) override;
   void visit(IntLiteralExpr *expr) override;
   void visit(LoadExpr *expr) override;
   void visit(PointerOpExpr *expr) override;

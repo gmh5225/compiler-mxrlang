@@ -233,6 +233,12 @@ int main(int argc_, const char **argv_) {
     Parser parser(tokens, diag);
     auto moduleDecl = parser.parse();
 
+    // Helper pass which prints the AST.
+    if (printAST) {
+      ASTPrinter astPrinter;
+      astPrinter.run(moduleDecl);
+    }
+
     if (diag.getNumErrs() > 0)
       continue;
 

@@ -503,7 +503,7 @@ Expr *Parser::primary() {
   } else if (match(TokenKind::openpar)) {
     auto *expr = expression();
     consume({TokenKind::closedpar}, DiagID::err_expect, ")"s);
-    return new GroupingExpr(expr, previous().getLocation());
+    return expr;
   } else if (peek().is(TokenKind::opencurly)) {
     return arrayInit();
   } else if (match(TokenKind::integer_literal))

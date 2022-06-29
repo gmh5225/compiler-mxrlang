@@ -34,7 +34,6 @@ class BinaryArithExpr;
 class BinaryLogicalExpr;
 class BoolLiteralExpr;
 class CallExpr;
-class GroupingExpr;
 class IntLiteralExpr;
 class LoadExpr;
 class PointerOpExpr;
@@ -70,7 +69,6 @@ public:
   virtual void visit(BinaryLogicalExpr *expr) {}
   virtual void visit(BoolLiteralExpr *expr) {}
   virtual void visit(CallExpr *expr) {}
-  virtual void visit(GroupingExpr *expr) {}
   virtual void visit(IntLiteralExpr *expr) {}
   virtual void visit(LoadExpr *expr) {}
   virtual void visit(PointerOpExpr *expr) {}
@@ -122,7 +120,6 @@ public:
     BinaryLogical,
     BoolLiteral,
     Call,
-    Grouping,
     IntLiteral,
     Load,
     PointerOp,
@@ -340,24 +337,6 @@ public:
 
   ACCEPT()
   CLASSOF(Expr, Call)
-};
-
-// Describes an expression inside a parentheses (e.g. (5 + 6 * x)).
-class GroupingExpr : public Expr {
-  Expr *expr;
-
-public:
-  GroupingExpr(Expr *expr, llvm::SMLoc loc)
-      : Expr(ExprKind::Grouping, loc), expr(expr) {}
-
-  Expr *getExpr() const { return expr; }
-
-  void setExpr(Expr *expr) { this->expr = expr; }
-
-  ACCEPT()
-  CLASSOF(Expr, Grouping)
-
-  bool canTakeAddressOf() override { return expr->canTakeAddressOf(); }
 };
 
 // Describes an INT type literal (e.g. 1264).
@@ -599,6 +578,10 @@ public:
 class VarDecl : public Decl {
   Type *type;
   Expr *initializer;
+  // If this is a local variable of array type, and it has an initializer,
+  // lower the initialization into a list of expressions, each representing
+  // an assignment of an initialization expression to an array member.
+  Exprs loweredArrayInit;
   // Whether this is a global variable declaration.
   bool global;
 
@@ -610,9 +593,11 @@ public:
 
   Type *getType() const { return type; }
   Expr *getInitializer() const { return initializer; }
+  Exprs &getLoweredArrayInit() { return loweredArrayInit; }
   bool isGlobal() const { return global; }
 
   void setInitializer(Expr *init) { this->initializer = init; }
+  void setLoweredArrayInit(Exprs &&init) { loweredArrayInit = std::move(init); }
   void setGlobal(bool global) { this->global = global; }
 
   ACCEPT()
